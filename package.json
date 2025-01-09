@@ -9,10 +9,10 @@
   },
   "type": "module",
   "dependencies": {
-    "@types/gifencoder": "^2.0.3",
+    "@types/gif-encoder": "^0.7.4",
     "@types/gl": "^6.0.5",
     "canvas": "^3.0.1",
-    "gifencoder": "^2.0.1",
+    "gif-encoder": "^0.7.2",
     "gl": "^8.1.6",
     "skia-canvas": "^2.0.1"
   },

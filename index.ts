@@ -1,7 +1,7 @@
 import fs from "fs";
 import createGLContext from "gl";
 import { Canvas, ImageData, loadImage } from "skia-canvas";
-import GIFEncoder from "gifencoder";
+import GIFEncoder from "gif-encoder";
 
 const start = process.hrtime();
 
@@ -200,12 +200,17 @@ const canvas = new Canvas(width, height);
 const ctx = canvas.getContext("2d");
 
 // Create a GIF encoder
-const encoder = new GIFEncoder(width, height);
-encoder.createReadStream().pipe(fs.createWriteStream("output/gradient.gif"));
-encoder.start();
+const encoder = new GIFEncoder(width, height, {
+  highWaterMark: 10 * 1024 * 1024,
+});
+encoder.pipe(fs.createWriteStream("output/gradient.gif"));
 encoder.setRepeat(0);
 encoder.setDelay((duration * 1000) / maxFrame);
-encoder.setQuality(10);
+encoder.setQuality(1);
+encoder.writeHeader();
+
+const frames: Uint8ClampedArray[] = [];
+const bufferPromises: Promise<void>[] = [];
 
 for (let frame = 0; frame < maxFrame; frame++) {
   // Print the frame status
@@ -316,28 +321,49 @@ for (let frame = 0; frame < maxFrame; frame++) {
   ctx.textAlign = "left";
   ctx.fillText(username, placement + avatarSize, boxMargin + textMargin);
 
-  // Add the frame to the GIF
-  // @ts-ignore The type here isn't incorrect, but what `encoder` requires is
-  // implemented by `import("canvas").CanvasRenderingContext2D` which doesn't
-  // technically fully implement `CanvasRenderingContext2D`
-  encoder.addFrame(ctx);
+  // Collect the frame
+  const imageData = ctx.getImageData(0, 0, width, height);
+  frames.push(imageData.data);
 
   // Write the frame to a file
   const frameNumber = String(frame).padStart(3, "0");
-  canvas.toBuffer("png").then((buffer) => {
+  const promise = canvas.toBuffer("png").then((buffer) => {
     fs.writeFileSync(`output/frame-${frameNumber}.png`, buffer);
   });
+  bufferPromises.push(promise);
 }
+
+const endFrameRender = process.hrtime(start);
 
 process.stdout.write("\n");
 
+for (let i = 0; i < maxFrame; i++) {
+  encoder.addFrame(frames[i]);
+  process.stdout.write(`Encoding frame ${i + 1}/${maxFrame}\r`);
+}
+
+process.stdout.write("\nWaiting for file writes...\n");
+
 encoder.finish();
 
+const endEncoding = process.hrtime(start);
+
+await Promise.all(bufferPromises);
+
+process.stdout.write("Done!\n");
+
 const end = process.hrtime(start);
-const seconds = end[0] + end[1] / 1e9;
+const secondsEnd = end[0] + end[1] / 1e9;
+const secondsFrameRender = endFrameRender[0] + endFrameRender[1] / 1e9;
+const secondsEncoding = endEncoding[0] + endEncoding[1] / 1e9;
 
-const average = seconds / maxFrame;
+const averageEnd = secondsEnd / maxFrame;
+const averageFrameRender = secondsFrameRender / maxFrame;
+const averageEncoding = secondsEncoding / maxFrame;
 
-process.stdout.write(`Framerate: ${(duration * 1000) / maxFrame}\n`);
-process.stdout.write(`Time: ${seconds.toFixed(3)}s\n`);
-process.stdout.write(`Average: ${average.toFixed(3)}s/frame\n`);
+console.log(`Total time: ${secondsEnd.toFixed(3)}s`);
+console.log(`Average time: ${averageEnd.toFixed(3)}s/frame`);
+console.log(`Frame render time: ${secondsFrameRender.toFixed(3)}s`);
+console.log(`Average frame render time: ${averageFrameRender.toFixed(3)}s`);
+console.log(`Encoding time: ${secondsEncoding.toFixed(3)}s`);
+console.log(`Average encoding time: ${averageEncoding.toFixed(3)}s`);
