@@ -5,9 +5,17 @@ import GIFEncoder from "gif-encoder";
 
 const start = process.hrtime();
 
+// Remove all frame PNG files
+const frameFiles = fs
+  .readdirSync("output")
+  .filter((file) => file.startsWith("frame-") && file.endsWith(".png"));
+frameFiles.forEach((file) => fs.unlinkSync(`output/${file}`));
+
+process.stdout.write("All frame PNG files have been removed.\n");
+
 // Initialize constants
 const duration = 3;
-const maxFrame = 60;
+const maxFrame = 90;
 const width = 375;
 const height = 150;
 const avatarSize = 100;
@@ -212,6 +220,9 @@ encoder.writeHeader();
 const frames: Uint8ClampedArray[] = [];
 const bufferPromises: Promise<void>[] = [];
 
+console.log(`FPS: ${(maxFrame / duration).toFixed(3)}`);
+console.log(`ms/F: ${Math.floor((duration / maxFrame) * 1000)}`);
+
 for (let frame = 0; frame < maxFrame; frame++) {
   // Print the frame status
   process.stdout.write(`Frame ${frame + 1}/${maxFrame}\r`);
@@ -355,7 +366,8 @@ process.stdout.write("Done!\n");
 const end = process.hrtime(start);
 const secondsEnd = end[0] + end[1] / 1e9;
 const secondsFrameRender = endFrameRender[0] + endFrameRender[1] / 1e9;
-const secondsEncoding = endEncoding[0] + endEncoding[1] / 1e9;
+const secondsEncoding =
+  endEncoding[0] + endEncoding[1] / 1e9 - secondsFrameRender;
 
 const averageEnd = secondsEnd / maxFrame;
 const averageFrameRender = secondsFrameRender / maxFrame;
@@ -364,6 +376,6 @@ const averageEncoding = secondsEncoding / maxFrame;
 console.log(`Total time: ${secondsEnd.toFixed(3)}s`);
 console.log(`Average time: ${averageEnd.toFixed(3)}s/frame`);
 console.log(`Frame render time: ${secondsFrameRender.toFixed(3)}s`);
-console.log(`Average frame render time: ${averageFrameRender.toFixed(3)}s`);
+console.log(`Average frame render time: ${averageFrameRender.toFixed(3)}s/frame`);
 console.log(`Encoding time: ${secondsEncoding.toFixed(3)}s`);
-console.log(`Average encoding time: ${averageEncoding.toFixed(3)}s`);
+console.log(`Average encoding time: ${averageEncoding.toFixed(3)}s/frame`);
