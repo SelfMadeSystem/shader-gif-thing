@@ -1,0 +1,22 @@
+{
+  "name": "shader-gif-thing",
+  "module": "index.ts",
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "scripts": {
+    "start": "node --experimental-strip-types index.ts"
+  },
+  "type": "module",
+  "dependencies": {
+    "@types/gifencoder": "^2.0.3",
+    "@types/gl": "^6.0.5",
+    "canvas": "^3.0.1",
+    "gifencoder": "^2.0.1",
+    "gl": "^8.1.6",
+    "skia-canvas": "^2.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5"
+  }
+}
