@@ -23,7 +23,7 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noPropertyAccessFromIndexSignature": false,
-    // Add this line
+    "esModuleInterop": true,
     "types": [
       "node"
     ]
