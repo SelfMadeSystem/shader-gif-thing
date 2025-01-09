@@ -14,8 +14,9 @@ frameFiles.forEach((file) => fs.unlinkSync(`output/${file}`));
 process.stdout.write("All frame PNG files have been removed.\n");
 
 // Initialize constants
-const duration = 3;
-const maxFrame = 90;
+const fps = 30;
+const duration = 4;
+const maxFrame = fps * duration;
 const width = 375;
 const height = 150;
 const avatarSize = 100;
@@ -55,99 +56,110 @@ void main() {
 const fragmentShaderSource = /* glsl */ `
 precision mediump float;
 const int maxFrame = ${maxFrame};
+const vec2 iResolution = vec2(${width}, ${height});
 varying vec2 v_uv;
 uniform int u_frame;
 
-#define PI 3.14159
-#define TWO_PI 6.283185
+#define PI 3.14159265359
 
-float polygonDistanceField(in vec2 pixelPos, in int N) {
-    float a = atan(pixelPos.y, pixelPos.x) + PI/2.;
-    float r = TWO_PI/float(N);
-    float distanceField = cos(floor(0.5 + a/r) * r - a) * length(pixelPos);
-    return distanceField;
+const float overallSpeed = 1.0;
+const float gridSmoothWidth = 0.015;
+const float axisWidth = 0.05;
+const float majorLineWidth = 0.025;
+const float minorLineWidth = 0.0125;
+const float majorLineFrequency = 1.0;
+const float minorLineFrequency = 1.0;
+const vec4 gridColor = vec4(0.5);
+const float scale = 5.0;
+const vec4 lineColor = vec4(0.25, 0.5, 1.0, 1.0);
+const float minLineWidth = 0.02;
+const float maxLineWidth = 0.5;
+const float lineSpeed = 2. * PI * overallSpeed;
+const float lineAmplitude = 1.0;
+const float lineFrequency = 0.2;
+const float warpSpeed = 2. * PI * overallSpeed;
+const float warpFrequency = 0.5;
+const float warpAmplitude = 1.0;
+const float offsetFrequency = 0.5;
+const float offsetSpeed = 2. * PI * overallSpeed;
+const float minOffsetSpread = 0.2;
+const float maxOffsetSpread = 1.5;
+const int linesPerGroup = 16;
+
+#define drawCircle(pos, radius, coord) smoothstep(radius + gridSmoothWidth, radius, length(coord - (pos)))
+
+#define drawSmoothLine(pos, halfWidth, t) smoothstep(halfWidth, 0.0, abs(pos - (t)))
+
+#define drawCrispLine(pos, halfWidth, t) smoothstep(halfWidth + gridSmoothWidth, halfWidth, abs(pos - (t)))
+
+#define drawPeriodicLine(freq, width, t) drawCrispLine(freq / 2.0, width, abs(mod(t, freq) - (freq) / 2.0))
+
+float drawGridLines(float axis)   
+{
+    return   drawCrispLine(0.0, axisWidth, axis)
+           + drawPeriodicLine(majorLineFrequency, majorLineWidth, axis)
+           + drawPeriodicLine(minorLineFrequency, minorLineWidth, axis);
 }
 
-float minAngularDifference(in float angleA, in float angleB) {
-    angleA = mod(angleA, TWO_PI);
-    if (angleA > PI) angleA -= TWO_PI;
-    if (angleA < PI) angleA += TWO_PI;
-    angleB = mod(angleB, TWO_PI);
-    if (angleB > PI) angleB -= TWO_PI;
-    if (angleB < PI) angleB += TWO_PI;
-
-    float angularDiff = abs(angleA - angleB);
-    angularDiff = min(angularDiff, TWO_PI - angularDiff);
-    return angularDiff;
+float drawGrid(vec2 space)
+{
+    return min(1., drawGridLines(space.x)
+                  +drawGridLines(space.y));
 }
 
-float map(in float value, in float istart, in float istop, in float ostart, in float ostop) {
-    return ostart + (ostop - ostart) * ((value - istart) / (istop - istart));
+// probably can optimize w/ noise, but currently using fourier transform
+float random(float t)
+{
+    return (cos(t) + sin(t * 2.)) / 2.0;   
 }
 
-float mapAndCap(in float value, in float istart, in float istop, in float ostart, in float ostop) {
-    float v = map(value, istart, istop, ostart, ostop);
-    v = max(min(ostart, ostop), v);
-    v = min(max(ostart, ostop), v);
-    return v;
+float getPlasmaY(float x, float horizontalFade, float offset)   
+{
+    float iTime = float(u_frame) / float(maxFrame);
+    return random(x * lineFrequency + iTime * lineSpeed) * horizontalFade * lineAmplitude + offset;
 }
 
-mat2 rotate2d(float angle) {
-    return mat2(cos(angle), -sin(angle), sin(angle), cos(angle));
-}
-
-mat2 scale(vec2 scale) {
-    return mat2(scale.x, 0, 0, scale.y);
-}
-
-void mainImage(out vec4 fragColor, in vec2 fragCoord) {
-    vec2 u_resolution = vec2(${width}, ${height});
+void mainImage( out vec4 fragColor, in vec2 fragCoord )
+{
+    float iTime = float(u_frame) / float(maxFrame);
+    vec2 uv = fragCoord.xy / iResolution.xy;
+    vec2 space = (fragCoord - iResolution.xy / 2.0) / iResolution.x * 2.0 * scale;
     
-    vec3 color = vec3(0.2);
-    float t = float(u_frame) / float(maxFrame) * PI;
-    vec2 st = fragCoord.xy / u_resolution.xy;
-    st.x *= u_resolution.x / u_resolution.y;
+    float horizontalFade = 1.0 - (cos(uv.x * 6.28) * 0.5 + 0.5);
+    float verticalFade = 1.0 - (cos(uv.y * 6.28) * 0.5 + 0.5);
 
-    float divisions = 4.;
-    vec2 mst = st;
-    mst *= divisions;
-
-    float cellx = floor(mst.x);
-    float celly = floor(mst.y);
-
-    mst = mod(mst, 1.);
-    float tt = t - (sin(cellx * .3) + cos(celly * .3)) * .5;
-    float squareProgress = mod(tt * .3, 1.);
-    float squareEntryProgress = mapAndCap(squareProgress, 0., 0.6, 0., 1.);
-    float squareExitProgress = mapAndCap(squareProgress, 0.9, .999, 0., 1.);
-    squareExitProgress = pow(squareExitProgress, 3.);
-
-    float borderProgress = mapAndCap(squareEntryProgress, 0., 0.55, 0., 1.);
-    borderProgress = pow(borderProgress, 1.5);
-    float fillProgress = mapAndCap(squareEntryProgress, 0.4, 0.9, 0., 1.);
-    fillProgress = pow(fillProgress, 4.);
-
-    mst = mst * 2. - 1.;
-    mst = rotate2d(cellx * PI * .5 + celly * PI * .5 + PI * .25) * mst;
-
-    float d = polygonDistanceField(mst, 4);
-    float r = map(squareExitProgress, 0., 1., 0.7, 0.);
-    float innerCut = map(fillProgress, 0., 1., 0.9, 0.0001);
-    float buf = 1.01;
-    float shape = smoothstep(r * buf, r, d) - smoothstep(r * innerCut, r * innerCut / buf, d);
-
-    buf = 1.5;
-    float shape2 = smoothstep(r * buf, r, d) - smoothstep(r * innerCut, r * innerCut / buf, d);
-
-    float sta = atan(mst.y, mst.x);
-    float targetAngle = map(borderProgress, 0., 1., 0., PI) + PI * .251;
-    float adiff = minAngularDifference(sta, targetAngle);
-    float arange = map(borderProgress, 0., 1., 0., PI);
-    float amask = 1. - smoothstep(arange, arange, adiff);
-    shape *= amask;
-
-    color = vec3(shape) * (vec3(1. - st.x, st.y, st.y) + vec3(.2));
-    fragColor = vec4(color, 1.0);
+    // fun with nonlinear transformations! (wind / turbulence)
+    space.y += random(space.x * warpFrequency + iTime * warpSpeed) * warpAmplitude * (0.5 + horizontalFade);
+    space.x += random(space.y * warpFrequency + iTime * warpSpeed + 2.0) * warpAmplitude * horizontalFade;
+    
+    vec4 lines = vec4(0);
+    
+    for(int l = 0; l < linesPerGroup; l++)
+    {
+        float normalizedLineIndex = float(l) / float(linesPerGroup);
+        float offsetTime = iTime * offsetSpeed;
+        float offsetPosition = float(l) + space.x * offsetFrequency;
+        float rand = random(offsetPosition + offsetTime) * 0.5 + 0.5;
+        float halfWidth = mix(minLineWidth, maxLineWidth, rand * horizontalFade) / 2.0;
+        float offset = random(offsetPosition * normalizedLineIndex + offsetTime) * mix(minOffsetSpread, maxOffsetSpread, horizontalFade);
+        float linePosition = getPlasmaY(space.x, horizontalFade, offset);
+        float line = drawSmoothLine(linePosition, halfWidth, space.y) / 2.0 + drawCrispLine(linePosition, halfWidth * 0.15, space.y);
+        
+        float circleX = mod(float(l) + iTime * lineSpeed, 25.0) - 12.0;
+        vec2 circlePosition = vec2(circleX, getPlasmaY(circleX, horizontalFade, offset));
+        float circle = drawCircle(circlePosition, 0.01, space) * 4.0;
+        
+        
+        line = line + circle;
+        lines += line * lineColor * rand;
+    }
+    
+    fragColor = mix(lineColor * 0.5, lineColor - vec4(0.2, 0.2, 0.7, 1), uv.x);
+    fragColor *= verticalFade;
+    fragColor.a = 1.0;
+    // debug grid:
+    //fragColor = mix(fragColor, gridColor, drawGrid(space));
+    fragColor += lines;
 }
 
 void main() {
@@ -214,7 +226,7 @@ const encoder = new GIFEncoder(width, height, {
 encoder.pipe(fs.createWriteStream("output/gradient.gif"));
 encoder.setRepeat(0);
 encoder.setDelay((duration * 1000) / maxFrame);
-encoder.setQuality(1);
+encoder.setQuality(10);
 encoder.writeHeader();
 
 const frames: Uint8ClampedArray[] = [];
