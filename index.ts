@@ -2,6 +2,7 @@ import fs from "fs";
 import createGLContext from "gl";
 import { Canvas, ImageData, loadImage } from "skia-canvas";
 import GIFEncoder from "gif-encoder";
+import { Vibrant } from "node-vibrant/node";
 
 const start = process.hrtime();
 
@@ -33,12 +34,17 @@ const sliderHeight = 20;
 const sliderTop = sliderBottom - sliderHeight;
 
 // Load the avatar
-const avatar = await loadImage("./assets/avatar.png");
-const username = "SelfMadeSystem";
+const avatarPath = "./assets/purpleberry.png";
+const avatar = await loadImage(avatarPath);
+const username = "Purpleberry";
 const points = 18;
 const pointsToNextLevel = 64;
 const sliderValue = points / pointsToNextLevel;
 const level = 6;
+
+// Get the avatar palette
+const palette = await Vibrant.from(avatarPath).getPalette();
+const c1 = palette.LightVibrant!;
 
 // Create a WebGL context
 const gl = createGLContext(width, height);
@@ -69,9 +75,8 @@ const float majorLineWidth = 0.025;
 const float minorLineWidth = 0.0125;
 const float majorLineFrequency = 1.0;
 const float minorLineFrequency = 1.0;
-const vec4 gridColor = vec4(0.5);
 const float scale = 5.0;
-const vec4 lineColor = vec4(0.25, 0.5, 1.0, 1.0);
+const vec4 lineColor = vec4(${c1.r / 255}, ${c1.g / 255}, ${c1.b / 255}, 1.0);
 const float minLineWidth = 0.02;
 const float maxLineWidth = 0.5;
 const float lineSpeed = 2. * PI * overallSpeed;
@@ -154,7 +159,9 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         lines += line * lineColor * rand;
     }
     
-    fragColor = mix(lineColor * 0.5, lineColor - vec4(0.2, 0.2, 0.7, 1), uv.x);
+    vec4 randomizedLineColor1 = lineColor + vec4(random(iTime * PI * 2.0) - 0.5, random(iTime * PI * 2.0 + 1.0) - 0.5, random(iTime * PI * 2.0 + 2.0) - 0.5, 0.0) * 0.1;
+    vec4 randomizedLineColor2 = lineColor + vec4(random(iTime * PI * 2.0 + 3.0) - 0.5, random(iTime * PI * 2.0 + 2.0) - 0.5, random(iTime * PI * 2.0 + 4.0) - 0.5, 0.0) * 0.1;
+    fragColor = mix(randomizedLineColor1, randomizedLineColor2, uv.x);
     fragColor *= verticalFade;
     fragColor.a = 1.0;
     // debug grid:
@@ -388,6 +395,8 @@ const averageEncoding = secondsEncoding / maxFrame;
 console.log(`Total time: ${secondsEnd.toFixed(3)}s`);
 console.log(`Average time: ${averageEnd.toFixed(3)}s/frame`);
 console.log(`Frame render time: ${secondsFrameRender.toFixed(3)}s`);
-console.log(`Average frame render time: ${averageFrameRender.toFixed(3)}s/frame`);
+console.log(
+  `Average frame render time: ${averageFrameRender.toFixed(3)}s/frame`
+);
 console.log(`Encoding time: ${secondsEncoding.toFixed(3)}s`);
 console.log(`Average encoding time: ${averageEncoding.toFixed(3)}s/frame`);
