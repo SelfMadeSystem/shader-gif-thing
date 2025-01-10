@@ -31,7 +31,7 @@ const sliderLeft = placement + avatarSize;
 const sliderRight = width - boxMargin * 2;
 const sliderWidth = sliderRight - sliderLeft;
 const sliderBottom = height - placement;
-const sliderHeight = 20;
+const sliderHeight = 12;
 const sliderTop = sliderBottom - sliderHeight;
 
 // Load the avatar
