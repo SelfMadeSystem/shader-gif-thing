@@ -35,13 +35,14 @@ const sliderHeight = 20;
 const sliderTop = sliderBottom - sliderHeight;
 
 // Load the avatar
-const avatarPath = "./assets/codem.png";
+const avatarPath = "./assets/avatar.png";
 const avatar = await loadImage(avatarPath);
-const username = "CodeM.";
-const points = 18;
-const pointsToNextLevel = 64;
+const username = "SelfMadeSystem";
+const points = 5909;
+const pointsToNextLevel = 6515;
 const sliderValue = points / pointsToNextLevel;
-const level = 6;
+const level = 18;
+const rank = 44;
 
 // Get the avatar palette
 const palette = await Vibrant.from(avatarPath).getPalette();
@@ -338,11 +339,20 @@ for (let frame = 0; frame < maxFrame; frame++) {
   );
 
   // Write the level
+  ctx.font = "14px Arial";
   ctx.textAlign = "right";
   ctx.fillStyle = "white";
   ctx.textBaseline = "bottom";
   ctx.textAlign = "right";
   ctx.fillText(`Level ${level}`, sliderRight - 8, sliderTop - 3);
+
+  // Write the rank
+  ctx.font = "13px Arial";
+  ctx.textAlign = "right";
+  ctx.fillStyle = "#ddd";
+  ctx.textBaseline = "bottom";
+  ctx.textAlign = "right";
+  ctx.fillText(`#${rank}`, sliderRight - 8, sliderTop - 20);
 
   // Write the username
   ctx.font = "24px Arial";
