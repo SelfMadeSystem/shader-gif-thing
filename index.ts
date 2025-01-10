@@ -31,7 +31,7 @@ const sliderLeft = placement + avatarSize;
 const sliderRight = width - boxMargin * 2;
 const sliderWidth = sliderRight - sliderLeft;
 const sliderBottom = height - placement;
-const sliderHeight = 12;
+const sliderHeight = 20;
 const sliderTop = sliderBottom - sliderHeight;
 
 // Load the avatar
@@ -61,7 +61,8 @@ void main() {
 }
 `;
 
-const fragmentShaderSource = /* glsl */ `
+// Source: https://www.shadertoy.com/view/ltXczj
+const bgShaderSource = /* glsl */ `
 precision mediump float;
 const int maxFrame = ${maxFrame};
 const vec2 iResolution = vec2(${width}, ${height});
@@ -69,7 +70,6 @@ varying vec2 v_uv;
 uniform int u_frame;
 
 #define PI 3.14159265359
-#define OFFSET ${Math.random()}
 
 const float overallSpeed = 1.0;
 const float gridSmoothWidth = 0.015;
@@ -118,18 +118,21 @@ float drawGrid(vec2 space)
 // probably can optimize w/ noise, but currently using fourier transform
 float random(float t)
 {
-    return (cos(t) + sin(t * 2.)) / 2.0;   
+    return (
+    cos(t + ${Math.random() * Math.PI}) +
+    sin(t * 2. + ${Math.random() * Math.PI}) +
+    cos(t * 3. + ${Math.random() * Math.PI}) * 0.5) / 2.5;   
 }
 
 float getPlasmaY(float x, float horizontalFade, float offset)   
 {
-    float iTime = OFFSET + float(u_frame) / float(maxFrame);
+    float iTime = float(u_frame) / float(maxFrame);
     return random(x * lineFrequency + iTime * lineSpeed) * horizontalFade * lineAmplitude + offset;
 }
 
 void mainImage( out vec4 fragColor, in vec2 fragCoord )
 {
-    float iTime = OFFSET + float(u_frame) / float(maxFrame);
+    float iTime = float(u_frame) / float(maxFrame);
     vec2 uv = fragCoord.xy / iResolution.xy;
     vec2 space = (fragCoord - iResolution.xy / 2.0) / iResolution.x * 2.0 * scale;
     
@@ -175,6 +178,162 @@ void main() {
 }
 `;
 
+// Source https://www.shadertoy.com/view/tdG3Rd
+const sliderShaderSource = /* glsl */ `
+precision mediump float;
+const int maxFrame = ${maxFrame};
+varying vec2 v_uv;
+uniform int u_frame;
+#define PI 3.14159265359
+
+float colormap_red(float x) {
+    if (x < 0.0) {
+        return 54.0 / 255.0;
+    } else if (x < 20049.0 / 82979.0) {
+        return (829.79 * x + 54.51) / 255.0;
+    } else {
+        return 1.0;
+    }
+}
+
+float colormap_green(float x) {
+    if (x < 20049.0 / 82979.0) {
+        return 0.0;
+    } else if (x < 327013.0 / 810990.0) {
+        return (8546482679670.0 / 10875673217.0 * x - 2064961390770.0 / 10875673217.0) / 255.0;
+    } else if (x <= 1.0) {
+        return (103806720.0 / 483977.0 * x + 19607415.0 / 483977.0) / 255.0;
+    } else {
+        return 1.0;
+    }
+}
+
+float colormap_blue(float x) {
+    if (x < 0.0) {
+        return 54.0 / 255.0;
+    } else if (x < 7249.0 / 82979.0) {
+        return (829.79 * x + 54.51) / 255.0;
+    } else if (x < 20049.0 / 82979.0) {
+        return 127.0 / 255.0;
+    } else if (x < 327013.0 / 810990.0) {
+        return (792.02249341361393720147485376583 * x - 64.364790735602331034989206222672) / 255.0;
+    } else {
+        return 1.0;
+    }
+}
+
+vec4 cool (float x) {
+  const float e0 = 0.0;
+  const vec4 v0 = vec4(0.49019607843137253,0,0.7019607843137254,1);
+  const float e1 = 0.13;
+  const vec4 v1 = vec4(0.4549019607843137,0,0.8549019607843137,1);
+  const float e2 = 0.25;
+  const vec4 v2 = vec4(0.3843137254901961,0.2901960784313726,0.9294117647058824,1);
+  const float e3 = 0.38;
+  const vec4 v3 = vec4(0.26666666666666666,0.5725490196078431,0.9058823529411765,1);
+  const float e4 = 0.5;
+  const vec4 v4 = vec4(0,0.8,0.7725490196078432,1);
+  const float e5 = 0.63;
+  const vec4 v5 = vec4(0,0.9686274509803922,0.5725490196078431,1);
+  const float e6 = 0.75;
+  const vec4 v6 = vec4(0,1,0.34509803921568627,1);
+  const float e7 = 0.88;
+  const vec4 v7 = vec4(0.1568627450980392,1,0.03137254901960784,1);
+  const float e8 = 1.0;
+  const vec4 v8 = vec4(0.5764705882352941,1,0,1);
+  float a0 = smoothstep(e0,e1,x);
+  float a1 = smoothstep(e1,e2,x);
+  float a2 = smoothstep(e2,e3,x);
+  float a3 = smoothstep(e3,e4,x);
+  float a4 = smoothstep(e4,e5,x);
+  float a5 = smoothstep(e5,e6,x);
+  float a6 = smoothstep(e6,e7,x);
+  float a7 = smoothstep(e7,e8,x);
+  return max(mix(v0,v1,a0)*step(e0,x)*step(x,e1),
+    max(mix(v1,v2,a1)*step(e1,x)*step(x,e2),
+    max(mix(v2,v3,a2)*step(e2,x)*step(x,e3),
+    max(mix(v3,v4,a3)*step(e3,x)*step(x,e4),
+    max(mix(v4,v5,a4)*step(e4,x)*step(x,e5),
+    max(mix(v5,v6,a5)*step(e5,x)*step(x,e6),
+    max(mix(v6,v7,a6)*step(e6,x)*step(x,e7),mix(v7,v8,a7)*step(e7,x)*step(x,e8)
+  )))))));
+}
+
+
+vec4 colormap(float x) {
+    return cool(x);
+    // return vec4(colormap_red(x), colormap_green(x), colormap_blue(x), 1.0);
+}
+
+// https://iquilezles.org/articles/warp
+/*float noise( in vec2 x )
+{
+    vec2 p = floor(x);
+    vec2 f = fract(x);
+    f = f*f*(3.0-2.0*f);
+    float a = textureLod(iChannel0,(p+vec2(0.5,0.5))/256.0,0.0).x;
+	float b = textureLod(iChannel0,(p+vec2(1.5,0.5))/256.0,0.0).x;
+	float c = textureLod(iChannel0,(p+vec2(0.5,1.5))/256.0,0.0).x;
+	float d = textureLod(iChannel0,(p+vec2(1.5,1.5))/256.0,0.0).x;
+    return mix(mix( a, b,f.x), mix( c, d,f.x),f.y);
+}*/
+
+
+float rand(vec2 n) { 
+    return fract(sin(dot(n, vec2(12.9898, 4.1414))) * 43758.5453);
+}
+
+float noise(vec2 p){
+    vec2 ip = floor(p);
+    vec2 u = fract(p);
+    u = u*u*(3.0-2.0*u);
+
+    float res = mix(
+        mix(rand(ip),rand(ip+vec2(1.0,0.0)),u.x),
+        mix(rand(ip+vec2(0.0,1.0)),rand(ip+vec2(1.0,1.0)),u.x),u.y);
+    return res*res;
+}
+
+float thing(vec2 p, float t) {
+    p += vec2(t, 0.);
+    float g = mod(dot(p, vec2(0.5)), 2.) * PI * 2.;
+    return (
+      sin(g) +
+      sin(g / 2.)
+    ) / 4. + .5;
+}
+
+const mat2 mtx = mat2( 0.80,  0.60, -0.60,  0.80 );
+
+float fbm( vec2 p )
+{
+    // float t = mod(iTime, 4.);
+    float t = float(u_frame) / float(maxFrame) * 4.;
+    float f = 0.0;
+
+    f += 0.500000*thing( p, t ); p = mtx*p*2.02;
+    f += 0.031250*noise( p ); p = mtx*p*2.01;
+    f += 0.250000*noise( p ); p = mtx*p*2.03;
+    f += 0.125000*noise( p ); p = mtx*p*2.01;
+    f += 0.062500*noise( p ); p = mtx*p*2.04;
+    f += 0.015625*noise( p + sin(t * PI) );
+
+    return f/0.96875;
+}
+
+float pattern( in vec2 p )
+{
+	return fbm(p);
+	// return fbm( p + fbm( p + fbm( p ) ) );
+}
+
+void main()
+{
+	float shade = pattern(v_uv);
+  gl_FragColor = vec4(colormap(shade).rgb, 1.);
+}
+`;
+
 function compileShader(
   gl: WebGLRenderingContext,
   source: string,
@@ -193,21 +352,28 @@ function compileShader(
 }
 
 const vertexShader = compileShader(gl, vertexShaderSource, gl.VERTEX_SHADER);
-const fragmentShader = compileShader(
-  gl,
-  fragmentShaderSource,
-  gl.FRAGMENT_SHADER
-);
+const bgShader = compileShader(gl, bgShaderSource, gl.FRAGMENT_SHADER);
+const sliderShader = compileShader(gl, sliderShaderSource, gl.FRAGMENT_SHADER);
 
-const program = gl.createProgram();
-gl.attachShader(program, vertexShader);
-gl.attachShader(program, fragmentShader);
-gl.linkProgram(program);
-if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-  throw new Error(`Failed to link program: ${gl.getProgramInfoLog(program)}`);
+const bgProgram = gl.createProgram();
+gl.attachShader(bgProgram, vertexShader);
+gl.attachShader(bgProgram, bgShader);
+gl.linkProgram(bgProgram);
+if (!gl.getProgramParameter(bgProgram, gl.LINK_STATUS)) {
+  throw new Error(
+    `Failed to link bg program: ${gl.getProgramInfoLog(bgProgram)}`
+  );
 }
 
-gl.useProgram(program);
+const sliderProgram = gl.createProgram();
+gl.attachShader(sliderProgram, vertexShader);
+gl.attachShader(sliderProgram, sliderShader);
+gl.linkProgram(sliderProgram);
+if (!gl.getProgramParameter(sliderProgram, gl.LINK_STATUS)) {
+  throw new Error(
+    `Failed to link slider program: ${gl.getProgramInfoLog(sliderProgram)}`
+  );
+}
 
 const positionBuffer = gl.createBuffer();
 gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
@@ -217,11 +383,27 @@ gl.bufferData(
   gl.STATIC_DRAW
 );
 
-const positionLocation = gl.getAttribLocation(program, "a_position");
-gl.enableVertexAttribArray(positionLocation);
-gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+const bgPositionLocation = gl.getAttribLocation(bgProgram, "a_position");
+gl.enableVertexAttribArray(bgPositionLocation);
+gl.vertexAttribPointer(bgPositionLocation, 2, gl.FLOAT, false, 0, 0);
 
-const frameLocation = gl.getUniformLocation(program, "u_frame");
+const sliderPositionLocation = gl.getAttribLocation(
+  sliderProgram,
+  "a_position"
+);
+gl.enableVertexAttribArray(sliderPositionLocation);
+gl.vertexAttribPointer(sliderPositionLocation, 2, gl.FLOAT, false, 0, 0);
+
+const frameLocationsByProgram = new Map<WebGLProgram, WebGLUniformLocation>();
+
+frameLocationsByProgram.set(
+  bgProgram,
+  gl.getUniformLocation(bgProgram, "u_frame")!
+);
+frameLocationsByProgram.set(
+  sliderProgram,
+  gl.getUniformLocation(sliderProgram, "u_frame")!
+);
 
 // Create a canvas
 const canvas = new Canvas(width, height);
@@ -243,27 +425,32 @@ const bufferPromises: Promise<void>[] = [];
 console.log(`FPS: ${(maxFrame / duration).toFixed(3)}`);
 console.log(`ms/F: ${Math.floor((duration / maxFrame) * 1000)}`);
 
+function drawGl(program: WebGLProgram, frame: number) {
+  // Set the frame
+  gl.useProgram(program);
+  const frameLocation = frameLocationsByProgram.get(program)!;
+  gl.uniform1i(frameLocation, frame);
+
+  // Draw the program
+  gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+  // Get the pixels
+  const pixels = new Uint8Array(width * height * 4);
+  gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+
+  // Convert the pixels to an ImageData
+  const imageData = new ImageData(new Uint8ClampedArray(pixels), width, height);
+
+  // Return the ImageData
+  return imageData;
+}
+
 for (let frame = 0; frame < maxFrame; frame++) {
   // Print the frame status
   process.stdout.write(`Frame ${frame + 1}/${maxFrame}\r`);
 
-  gl.uniform1i(frameLocation, frame);
-
-  // Draw the gradient
-  gl.drawArrays(gl.TRIANGLES, 0, 6);
-
-  // Read the pixels
-  const pixels = new Uint8Array(width * height * 4);
-  gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
-
-  // Clear the canvas and put the pixels on it
-  ctx.clearRect(0, 0, width, height);
-  const glImageData = new ImageData(
-    new Uint8ClampedArray(pixels),
-    width,
-    height
-  );
-  ctx.putImageData(glImageData, 0, 0);
+  // Draw the background
+  ctx.putImageData(drawGl(bgProgram, frame), 0, 0);
 
   // Draw the box
   ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
@@ -315,7 +502,6 @@ for (let frame = 0; frame < maxFrame; frame++) {
   ctx.filter = "none";
   ctx.fill();
 
-  ctx.fillStyle = "white";
   ctx.beginPath();
   ctx.roundRect(
     sliderLeft - sliderHeight / 2,
@@ -324,7 +510,8 @@ for (let frame = 0; frame < maxFrame; frame++) {
     sliderHeight,
     sliderHeight
   );
-  ctx.fill();
+  ctx.clip();
+  ctx.drawImage(drawGl(sliderProgram, frame), 0, 0);
   ctx.restore();
 
   // Write the slider value
@@ -382,9 +569,14 @@ for (let i = 0; i < maxFrame; i++) {
   process.stdout.write(`Encoding frame ${i + 1}/${maxFrame}\r`);
 }
 
-process.stdout.write("\nWaiting for file writes...\n");
+console.log("\nWaiting for file writes...");
 
 encoder.finish();
+
+
+console.log("Wrote GIF file");
+
+console.log("Waiting for .png writes...");
 
 const endEncoding = process.hrtime(start);
 
