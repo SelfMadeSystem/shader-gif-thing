@@ -15,6 +15,7 @@ frameFiles.forEach((file) => fs.unlinkSync(`output/${file}`));
 process.stdout.write("All frame PNG files have been removed.\n");
 
 // Initialize constants
+const outputFile = "./output/gradient.gif";
 const fps = 30;
 const duration = 4;
 const maxFrame = fps * duration;
@@ -230,7 +231,7 @@ const ctx = canvas.getContext("2d");
 const encoder = new GIFEncoder(width, height, {
   highWaterMark: 10 * 1024 * 1024,
 });
-encoder.pipe(fs.createWriteStream("output/gradient.gif"));
+encoder.pipe(fs.createWriteStream(outputFile));
 encoder.setRepeat(0);
 encoder.setDelay((duration * 1000) / maxFrame);
 encoder.setQuality(10);
@@ -400,3 +401,4 @@ console.log(
 );
 console.log(`Encoding time: ${secondsEncoding.toFixed(3)}s`);
 console.log(`Average encoding time: ${averageEncoding.toFixed(3)}s/frame`);
+console.log(`Output file: ${outputFile}`);
