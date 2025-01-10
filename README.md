@@ -9,6 +9,8 @@ sudo apt-get install libx11-dev libxi-dev libxext-dev build-essential libpixman-
 npm install
 ```
 
+Be sure to `mkdir output` otherwise you're going to get file not found errors during image file generation.
+
 To run the program, it is recommended to use `nvm` to install the latest version of node (version 23). This isn't strictly necessary, but it is recommended since it supports the `--experimental-strip-types` which means we don't need to use `tsc` to compile the typescript files.
 
 ```bash
