@@ -35,9 +35,9 @@ const sliderHeight = 20;
 const sliderTop = sliderBottom - sliderHeight;
 
 // Load the avatar
-const avatarPath = "./assets/purpleberry.png";
+const avatarPath = "./assets/codem.png";
 const avatar = await loadImage(avatarPath);
-const username = "Purpleberry";
+const username = "CodeM.";
 const points = 18;
 const pointsToNextLevel = 64;
 const sliderValue = points / pointsToNextLevel;
@@ -45,7 +45,7 @@ const level = 6;
 
 // Get the avatar palette
 const palette = await Vibrant.from(avatarPath).getPalette();
-const c1 = palette.LightVibrant!;
+const c = palette.Vibrant!;
 
 // Create a WebGL context
 const gl = createGLContext(width, height);
@@ -68,6 +68,7 @@ varying vec2 v_uv;
 uniform int u_frame;
 
 #define PI 3.14159265359
+#define OFFSET ${Math.random()}
 
 const float overallSpeed = 1.0;
 const float gridSmoothWidth = 0.015;
@@ -77,7 +78,7 @@ const float minorLineWidth = 0.0125;
 const float majorLineFrequency = 1.0;
 const float minorLineFrequency = 1.0;
 const float scale = 5.0;
-const vec4 lineColor = vec4(${c1.r / 255}, ${c1.g / 255}, ${c1.b / 255}, 1.0);
+const vec4 lineColor = vec4(${c.r / 255}, ${c.g / 255}, ${c.b / 255}, 1.0);
 const float minLineWidth = 0.02;
 const float maxLineWidth = 0.5;
 const float lineSpeed = 2. * PI * overallSpeed;
@@ -121,13 +122,13 @@ float random(float t)
 
 float getPlasmaY(float x, float horizontalFade, float offset)   
 {
-    float iTime = float(u_frame) / float(maxFrame);
+    float iTime = OFFSET + float(u_frame) / float(maxFrame);
     return random(x * lineFrequency + iTime * lineSpeed) * horizontalFade * lineAmplitude + offset;
 }
 
 void mainImage( out vec4 fragColor, in vec2 fragCoord )
 {
-    float iTime = float(u_frame) / float(maxFrame);
+    float iTime = OFFSET + float(u_frame) / float(maxFrame);
     vec2 uv = fragCoord.xy / iResolution.xy;
     vec2 space = (fragCoord - iResolution.xy / 2.0) / iResolution.x * 2.0 * scale;
     
@@ -160,9 +161,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         lines += line * lineColor * rand;
     }
     
-    vec4 randomizedLineColor1 = lineColor + vec4(random(iTime * PI * 2.0) - 0.5, random(iTime * PI * 2.0 + 1.0) - 0.5, random(iTime * PI * 2.0 + 2.0) - 0.5, 0.0) * 0.1;
-    vec4 randomizedLineColor2 = lineColor + vec4(random(iTime * PI * 2.0 + 3.0) - 0.5, random(iTime * PI * 2.0 + 2.0) - 0.5, random(iTime * PI * 2.0 + 4.0) - 0.5, 0.0) * 0.1;
-    fragColor = mix(randomizedLineColor1, randomizedLineColor2, uv.x);
+    fragColor = mix(lineColor * 0.5, lineColor, uv.x);
     fragColor *= verticalFade;
     fragColor.a = 1.0;
     // debug grid:
