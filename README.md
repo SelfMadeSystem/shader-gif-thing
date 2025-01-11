@@ -11,7 +11,7 @@ The main problems are with the `gl` and `canvas` node modules. The `gl` module i
 On Ubuntu, these are the dependencies you need to install for the `gl` and `canvas` node modules
 
 ```bash
-sudo apt-get install libx11-dev libxi-dev libxext-dev build-essential libpixman-1-dev libcairo2-dev libpango1.0-dev libgif-dev libgl1-mesa-dev
+sudo apt-get install libx11-dev libxi-dev libxext-dev build-essential libpixman-1-dev libcairo2-dev libpango1.0-dev libgif-dev libgl1-mesa-dev python-is-python3
 ```
 
 ### On Windows
