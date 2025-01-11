@@ -420,19 +420,29 @@ console.log(`ms/F: ${Math.floor((duration / maxFrame) * 1000)}`);
 function drawGl(program: WebGLProgram, frame: number) {
   start("draw-gl");
   // Set the frame
+  start("draw-gl-use-program");
   gl.useProgram(program);
+  stop("draw-gl-use-program");
+  start("draw-gl-frame");
   const frameLocation = frameLocationsByProgram.get(program)!;
   gl.uniform1i(frameLocation, frame);
+  stop("draw-gl-frame");
 
   // Draw the program
+  start("draw-gl-draw");
   gl.drawArrays(gl.TRIANGLES, 0, 6);
+  stop("draw-gl-draw");
 
   // Get the pixels
+  start("draw-gl-read-pixels");
   const pixels = new Uint8Array(width * height * 4);
   gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+  stop("draw-gl-read-pixels");
 
   // Convert the pixels to an ImageData
+  start("draw-gl-image-data");
   const imageData = new ImageData(new Uint8ClampedArray(pixels), width, height);
+  stop("draw-gl-image-data");
   stop("draw-gl");
 
   // Return the ImageData
