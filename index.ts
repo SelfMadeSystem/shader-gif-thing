@@ -44,15 +44,15 @@ const sliderHeight = 20;
 const sliderTop = sliderBottom - sliderHeight;
 
 // Load the avatar
-const avatarPath = "https://cdn.discordapp.com/avatars/366967053778944000/a_b8e796f465a6b9936ee7997b7f5a4169.webp";
+const avatarPath = "https://cdn.discordapp.com/avatars/299298175825739776/568dd2233779e3c2a037ac3186116739.webp";
 const avatarBuffer = await bufferFromUrl(avatarPath);
 const avatar = await loadImage(avatarBuffer);
-const username = "hippo.exe";
-const points = 84735;
-const pointsPrevLevel = 84535;
-const pointsToNextLevel = 87155;
+const username = "SelfMadeSystem";
+const points = 153;
+const pointsPrevLevel = 120;
+const pointsToNextLevel = 175;
 const sliderValue = (points - pointsPrevLevel) / (pointsToNextLevel - pointsPrevLevel);
-const level = 66;
+const level = 6;
 const rank = 4;
 
 // Start the timer
@@ -200,43 +200,7 @@ varying vec2 v_uv;
 uniform int u_frame;
 #define PI 3.14159265359
 
-float colormap_red(float x) {
-    if (x < 0.0) {
-        return 54.0 / 255.0;
-    } else if (x < 20049.0 / 82979.0) {
-        return (829.79 * x + 54.51) / 255.0;
-    } else {
-        return 1.0;
-    }
-}
-
-float colormap_green(float x) {
-    if (x < 20049.0 / 82979.0) {
-        return 0.0;
-    } else if (x < 327013.0 / 810990.0) {
-        return (8546482679670.0 / 10875673217.0 * x - 2064961390770.0 / 10875673217.0) / 255.0;
-    } else if (x <= 1.0) {
-        return (103806720.0 / 483977.0 * x + 19607415.0 / 483977.0) / 255.0;
-    } else {
-        return 1.0;
-    }
-}
-
-float colormap_blue(float x) {
-    if (x < 0.0) {
-        return 54.0 / 255.0;
-    } else if (x < 7249.0 / 82979.0) {
-        return (829.79 * x + 54.51) / 255.0;
-    } else if (x < 20049.0 / 82979.0) {
-        return 127.0 / 255.0;
-    } else if (x < 327013.0 / 810990.0) {
-        return (792.02249341361393720147485376583 * x - 64.364790735602331034989206222672) / 255.0;
-    } else {
-        return 1.0;
-    }
-}
-
-vec4 cool (float x) {
+vec4 colormap (float x) {
   const float e0 = 0.0;
   const vec4 v0 = vec4(0.49019607843137253,0,0.7019607843137254,1);
   const float e1 = 0.13;
@@ -271,12 +235,6 @@ vec4 cool (float x) {
     max(mix(v5,v6,a5)*step(e5,x)*step(x,e6),
     max(mix(v6,v7,a6)*step(e6,x)*step(x,e7),mix(v7,v8,a7)*step(e7,x)*step(x,e8)
   )))))));
-}
-
-
-vec4 colormap(float x) {
-    return cool(x);
-    // return vec4(colormap_red(x), colormap_green(x), colormap_blue(x), 1.0);
 }
 
 // https://iquilezles.org/articles/warp
