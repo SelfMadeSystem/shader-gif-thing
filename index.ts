@@ -74,6 +74,10 @@ start("create-gl-context");
 const gl = createGLContext(width, height);
 stop("create-gl-context");
 
+if (!gl) {
+  throw new Error("Failed to create WebGL context");
+}
+
 start("create-gl-shaders");
 // Create a simple gradient shader
 const vertexShaderSource = /* glsl */ `
