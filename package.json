@@ -15,6 +15,7 @@
     "gif-encoder": "^0.7.2",
     "gl": "^8.1.6",
     "node-vibrant": "^4.0.0",
+    "sharp": "^0.33.5",
     "skia-canvas": "^2.0.1"
   },
   "devDependencies": {

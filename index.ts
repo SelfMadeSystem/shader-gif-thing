@@ -3,8 +3,17 @@ import createGLContext from "gl";
 import { Canvas, ImageData, loadImage } from "skia-canvas";
 import GIFEncoder from "gif-encoder";
 import { Vibrant } from "node-vibrant/node";
+import sharp from "sharp";
 
-const start = process.hrtime();
+async function bufferFromUrl(url: string) {
+  const response = await fetch(url);
+  const arrayBuffer = await response.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+
+  const pngBuffer = await sharp(buffer).png().toBuffer();
+  
+  return pngBuffer;
+}
 
 // Remove all frame PNG files
 const frameFiles = fs
@@ -35,17 +44,22 @@ const sliderHeight = 20;
 const sliderTop = sliderBottom - sliderHeight;
 
 // Load the avatar
-const avatarPath = "./assets/arnaud.png";
-const avatar = await loadImage(avatarPath);
-const username = "Myrodar";
-const points = 5909;
-const pointsToNextLevel = 6515;
-const sliderValue = points / pointsToNextLevel;
-const level = 18;
-const rank = 44;
+const avatarPath = "https://cdn.discordapp.com/avatars/366967053778944000/a_b8e796f465a6b9936ee7997b7f5a4169.webp";
+const avatarBuffer = await bufferFromUrl(avatarPath);
+const avatar = await loadImage(avatarBuffer);
+const username = "hippo.exe";
+const points = 84735;
+const pointsPrevLevel = 84535;
+const pointsToNextLevel = 87155;
+const sliderValue = (points - pointsPrevLevel) / (pointsToNextLevel - pointsPrevLevel);
+const level = 66;
+const rank = 4;
+
+// Start the timer
+const start = process.hrtime();
 
 // Get the avatar palette
-const palette = await Vibrant.from(avatarPath).getPalette();
+const palette = await Vibrant.from(avatarBuffer).getPalette();
 const c = palette.Vibrant!;
 
 // Create a WebGL context
@@ -545,12 +559,27 @@ for (let frame = 0; frame < maxFrame; frame++) {
   ctx.textAlign = "right";
   ctx.fillText(`#${rank}`, sliderRight - 8, sliderTop - 20);
 
+  // Clip the username
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(
+    boxMargin,
+    boxMargin,
+    width - boxMargin * 2,
+    height - boxMargin * 2,
+    boxRadius
+  );
+  ctx.clip();
+
   // Write the username
   ctx.font = "24px Arial";
   ctx.fillStyle = "white";
   ctx.textBaseline = "top";
   ctx.textAlign = "left";
   ctx.fillText(username, placement + avatarSize, boxMargin + textMargin);
+
+  // Restore the clip
+  ctx.restore();
 
   // Collect the frame
   const imageData = ctx.getImageData(0, 0, width, height);
