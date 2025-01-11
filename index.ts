@@ -1,7 +1,6 @@
 import fs from "fs";
 import createGLContext from "gl";
 import { Canvas, ImageData, loadImage, FontLibrary } from "skia-canvas";
-import GIFEncoder from "gif-encoder";
 import { Vibrant } from "node-vibrant/node";
 import sharp from "sharp";
 import { start, report, stop } from "./bench.ts";
@@ -407,18 +406,6 @@ const canvas = new Canvas(width, height);
 const ctx = canvas.getContext("2d");
 stop("create-canvas");
 
-// Create a GIF encoder
-start("create-gif-encoder");
-const encoder = new GIFEncoder(width, height, {
-  highWaterMark: 10 * 1024 * 1024,
-});
-encoder.pipe(fs.createWriteStream(outputFile));
-encoder.setRepeat(0);
-encoder.setDelay((duration * 1000) / maxFrame);
-encoder.setQuality(10);
-encoder.writeHeader();
-stop("create-gif-encoder");
-
 // const frames: Uint8ClampedArray[] = [];
 const bufferPromises: Promise<void>[] = [];
 
@@ -615,13 +602,6 @@ for (let frame = 0; frame < maxFrame; frame++) {
   // Restore the clip
   ctx.restore();
 
-  // Collect the frame
-  start("collect-frame");
-  const imageData = ctx.getImageData(0, 0, width, height);
-  encoder.addFrame(imageData.data);
-  stop("collect-frame");
-  // frames.push(imageData.data);
-
   // Write the frame to a file
   start("write-frame");
   const frameNumber = String(frame).padStart(3, "0");
@@ -636,10 +616,6 @@ for (let frame = 0; frame < maxFrame; frame++) {
 stop("draw-frames");
 
 console.log("");
-
-start("encoder-finish");
-encoder.finish();
-stop("encoder-finish");
 
 start("buffer-promises");
 await Promise.all(bufferPromises);
