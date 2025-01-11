@@ -8,9 +8,9 @@ import { start, report, stop } from "./bench.ts";
 
 start("total");
 
-FontLibrary.use("Noto Custom", [
-  "./assets/NotoSans-Custom.ttf"
-])
+start("load-font");
+FontLibrary.use("Noto Custom", ["./assets/NotoSans-Custom.ttf"]);
+stop("load-font");
 
 async function bufferFromUrl(url: string) {
   const response = await fetch(url);
