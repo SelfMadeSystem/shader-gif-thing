@@ -529,7 +529,9 @@ for (let frame = 0; frame < maxFrame; frame++) {
     sliderHeight
   );
   ctx.clip();
+  start("draw-slider-gl");
   ctx.drawImage(drawGl(sliderProgram, frame), 0, 0);
+  stop("draw-slider-gl");
   ctx.restore();
   stop("draw-slider-2");
   stop("draw-slider");
