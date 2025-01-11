@@ -35,9 +35,9 @@ const sliderHeight = 20;
 const sliderTop = sliderBottom - sliderHeight;
 
 // Load the avatar
-const avatarPath = "./assets/avatar.png";
+const avatarPath = "./assets/arnaud.png";
 const avatar = await loadImage(avatarPath);
-const username = "SelfMadeSystem";
+const username = "Myrodar";
 const points = 5909;
 const pointsToNextLevel = 6515;
 const sliderValue = points / pointsToNextLevel;
@@ -419,7 +419,7 @@ encoder.setDelay((duration * 1000) / maxFrame);
 encoder.setQuality(10);
 encoder.writeHeader();
 
-const frames: Uint8ClampedArray[] = [];
+// const frames: Uint8ClampedArray[] = [];
 const bufferPromises: Promise<void>[] = [];
 
 console.log(`FPS: ${(maxFrame / duration).toFixed(3)}`);
@@ -448,6 +448,10 @@ function drawGl(program: WebGLProgram, frame: number) {
 for (let frame = 0; frame < maxFrame; frame++) {
   // Print the frame status
   process.stdout.write(`Frame ${frame + 1}/${maxFrame}\r`);
+
+  // Clear the canvas
+  ctx.clearRect(0, 0, width, height);
+  gl.clearColor(0, 0, 0, 0);
 
   // Draw the background
   ctx.putImageData(drawGl(bgProgram, frame), 0, 0);
@@ -550,33 +554,23 @@ for (let frame = 0; frame < maxFrame; frame++) {
 
   // Collect the frame
   const imageData = ctx.getImageData(0, 0, width, height);
-  frames.push(imageData.data);
+  encoder.addFrame(imageData.data);
+  // frames.push(imageData.data);
 
   // Write the frame to a file
   const frameNumber = String(frame).padStart(3, "0");
-  const promise = canvas.toBuffer("png").then((buffer) => {
+  const wait = canvas.toBuffer("png").then((buffer) => {
+    console.log(`Writing frame ${frameNumber}`);
     fs.writeFileSync(`output/frame-${frameNumber}.png`, buffer);
   });
-  bufferPromises.push(promise);
+  bufferPromises.push(wait);
 }
 
 const endFrameRender = process.hrtime(start);
 
 process.stdout.write("\n");
 
-for (let i = 0; i < maxFrame; i++) {
-  encoder.addFrame(frames[i]);
-  process.stdout.write(`Encoding frame ${i + 1}/${maxFrame}\r`);
-}
-
-console.log("\nWaiting for file writes...");
-
 encoder.finish();
-
-
-console.log("Wrote GIF file");
-
-console.log("Waiting for .png writes...");
 
 const endEncoding = process.hrtime(start);
 
