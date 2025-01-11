@@ -1,12 +1,16 @@
 import fs from "fs";
 import createGLContext from "gl";
-import { Canvas, ImageData, loadImage } from "skia-canvas";
+import { Canvas, ImageData, loadImage, FontLibrary } from "skia-canvas";
 import GIFEncoder from "gif-encoder";
 import { Vibrant } from "node-vibrant/node";
 import sharp from "sharp";
 import { start, report, stop } from "./bench.ts";
 
 start("total");
+
+FontLibrary.use("Noto Custom", [
+  "./assets/NotoSans-Custom.ttf"
+])
 
 async function bufferFromUrl(url: string) {
   const response = await fetch(url);
@@ -553,7 +557,7 @@ for (let frame = 0; frame < maxFrame; frame++) {
   start("draw-text");
   // Write the slider value
   start("draw-text-1");
-  ctx.font = "14px Arial";
+  ctx.font = "14px Montserrat";
   ctx.fillStyle = "white";
   ctx.textBaseline = "bottom";
   ctx.textAlign = "left";
@@ -566,7 +570,7 @@ for (let frame = 0; frame < maxFrame; frame++) {
 
   // Write the level
   start("draw-text-2");
-  ctx.font = "14px Arial";
+  ctx.font = "14px Montserrat";
   ctx.textAlign = "right";
   ctx.fillStyle = "white";
   ctx.textBaseline = "bottom";
@@ -576,7 +580,7 @@ for (let frame = 0; frame < maxFrame; frame++) {
 
   // Write the rank
   start("draw-text-3");
-  ctx.font = "13px Arial";
+  ctx.font = "13px Montserrat";
   ctx.textAlign = "right";
   ctx.fillStyle = "#ddd";
   ctx.textBaseline = "bottom";
@@ -600,7 +604,7 @@ for (let frame = 0; frame < maxFrame; frame++) {
 
   // Write the username
   start("draw-username");
-  ctx.font = "24px Arial";
+  ctx.font = "24px 'Noto Custom'";
   ctx.fillStyle = "white";
   ctx.textBaseline = "top";
   ctx.textAlign = "left";
