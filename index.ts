@@ -4,6 +4,9 @@ import { Canvas, ImageData, loadImage } from "skia-canvas";
 import GIFEncoder from "gif-encoder";
 import { Vibrant } from "node-vibrant/node";
 import sharp from "sharp";
+import { start, report, stop } from "./bench.ts";
+
+start("total");
 
 async function bufferFromUrl(url: string) {
   const response = await fetch(url);
@@ -11,7 +14,7 @@ async function bufferFromUrl(url: string) {
   const buffer = Buffer.from(arrayBuffer);
 
   const pngBuffer = await sharp(buffer).png().toBuffer();
-  
+
   return pngBuffer;
 }
 
@@ -21,7 +24,7 @@ const frameFiles = fs
   .filter((file) => file.startsWith("frame-") && file.endsWith(".png"));
 frameFiles.forEach((file) => fs.unlinkSync(`output/${file}`));
 
-process.stdout.write("All frame PNG files have been removed.\n");
+console.log("All frame PNG files have been removed.");
 
 // Initialize constants
 const outputFile = "./output/gradient.gif";
@@ -44,27 +47,34 @@ const sliderHeight = 20;
 const sliderTop = sliderBottom - sliderHeight;
 
 // Load the avatar
-const avatarPath = "https://cdn.discordapp.com/avatars/299298175825739776/568dd2233779e3c2a037ac3186116739.webp";
+console.log("Loading avatar...");
+start("load-avatar");
+const avatarPath =
+  "https://cdn.discordapp.com/avatars/299298175825739776/568dd2233779e3c2a037ac3186116739.webp";
 const avatarBuffer = await bufferFromUrl(avatarPath);
 const avatar = await loadImage(avatarBuffer);
 const username = "SelfMadeSystem";
 const points = 153;
 const pointsPrevLevel = 120;
 const pointsToNextLevel = 175;
-const sliderValue = (points - pointsPrevLevel) / (pointsToNextLevel - pointsPrevLevel);
+const sliderValue =
+  (points - pointsPrevLevel) / (pointsToNextLevel - pointsPrevLevel);
 const level = 6;
 const rank = 4;
-
-// Start the timer
-const start = process.hrtime();
 
 // Get the avatar palette
 const palette = await Vibrant.from(avatarBuffer).getPalette();
 const c = palette.Vibrant!;
+stop("load-avatar");
 
 // Create a WebGL context
+console.log("Creating WebGL context...");
+start("create-gl-total");
+start("create-gl-context");
 const gl = createGLContext(width, height);
+stop("create-gl-context");
 
+start("create-gl-shaders");
 // Create a simple gradient shader
 const vertexShaderSource = /* glsl */ `
 attribute vec2 a_position;
@@ -346,7 +356,9 @@ if (!gl.getProgramParameter(sliderProgram, gl.LINK_STATUS)) {
     `Failed to link slider program: ${gl.getProgramInfoLog(sliderProgram)}`
   );
 }
+stop("create-gl-shaders");
 
+start("create-gl-buffers");
 const positionBuffer = gl.createBuffer();
 gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
 gl.bufferData(
@@ -354,7 +366,9 @@ gl.bufferData(
   new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]),
   gl.STATIC_DRAW
 );
+stop("create-gl-buffers");
 
+start("create-gl-locations");
 const bgPositionLocation = gl.getAttribLocation(bgProgram, "a_position");
 gl.enableVertexAttribArray(bgPositionLocation);
 gl.vertexAttribPointer(bgPositionLocation, 2, gl.FLOAT, false, 0, 0);
@@ -376,12 +390,17 @@ frameLocationsByProgram.set(
   sliderProgram,
   gl.getUniformLocation(sliderProgram, "u_frame")!
 );
+stop("create-gl-locations");
+stop("create-gl-total");
 
 // Create a canvas
+start("create-canvas");
 const canvas = new Canvas(width, height);
 const ctx = canvas.getContext("2d");
+stop("create-canvas");
 
 // Create a GIF encoder
+start("create-gif-encoder");
 const encoder = new GIFEncoder(width, height, {
   highWaterMark: 10 * 1024 * 1024,
 });
@@ -390,6 +409,7 @@ encoder.setRepeat(0);
 encoder.setDelay((duration * 1000) / maxFrame);
 encoder.setQuality(10);
 encoder.writeHeader();
+stop("create-gif-encoder");
 
 // const frames: Uint8ClampedArray[] = [];
 const bufferPromises: Promise<void>[] = [];
@@ -398,6 +418,7 @@ console.log(`FPS: ${(maxFrame / duration).toFixed(3)}`);
 console.log(`ms/F: ${Math.floor((duration / maxFrame) * 1000)}`);
 
 function drawGl(program: WebGLProgram, frame: number) {
+  start("draw-gl");
   // Set the frame
   gl.useProgram(program);
   const frameLocation = frameLocationsByProgram.get(program)!;
@@ -412,23 +433,31 @@ function drawGl(program: WebGLProgram, frame: number) {
 
   // Convert the pixels to an ImageData
   const imageData = new ImageData(new Uint8ClampedArray(pixels), width, height);
+  stop("draw-gl");
 
   // Return the ImageData
   return imageData;
 }
 
+start("draw-frames");
 for (let frame = 0; frame < maxFrame; frame++) {
+  start("draw-frame");
   // Print the frame status
   process.stdout.write(`Frame ${frame + 1}/${maxFrame}\r`);
 
   // Clear the canvas
+  start("clear-canvas");
   ctx.clearRect(0, 0, width, height);
   gl.clearColor(0, 0, 0, 0);
+  stop("clear-canvas");
 
   // Draw the background
+  start("draw-gl-bg");
   ctx.putImageData(drawGl(bgProgram, frame), 0, 0);
+  stop("draw-gl-bg");
 
   // Draw the box
+  start("draw-box");
   ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
   ctx.beginPath();
   ctx.roundRect(
@@ -439,8 +468,10 @@ for (let frame = 0; frame < maxFrame; frame++) {
     boxRadius
   );
   ctx.fill();
+  stop("draw-box");
 
   // Clip the avatar
+  start("clip-avatar");
   ctx.save();
   ctx.beginPath();
   ctx.arc(
@@ -451,23 +482,32 @@ for (let frame = 0; frame < maxFrame; frame++) {
     Math.PI * 2
   );
   ctx.clip();
+  stop("clip-avatar");
 
   // Draw a blur effect
+  start("draw-blur");
   ctx.filter = "blur(12px)";
   ctx.drawImage(canvas, 0, 0);
   ctx.filter = "none";
+  stop("draw-blur");
 
   // Draw the avatar background
+  start("draw-avatar-bg");
   ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
   ctx.fill();
+  stop("draw-avatar-bg");
 
   // Draw the avatar
+  start("draw-avatar");
   ctx.drawImage(avatar, placement, placement, avatarSize, avatarSize);
+  stop("draw-avatar");
 
   // Restore the clip
   ctx.restore();
 
   // Draw the slider
+  start("draw-slider");
+  start("draw-slider-1");
   ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
   ctx.beginPath();
   ctx.roundRect(sliderLeft, sliderTop, sliderWidth, sliderHeight, sliderHeight);
@@ -477,7 +517,9 @@ for (let frame = 0; frame < maxFrame; frame++) {
   ctx.drawImage(canvas, 0, 0);
   ctx.filter = "none";
   ctx.fill();
+  stop("draw-slider-1");
 
+  start("draw-slider-2");
   ctx.beginPath();
   ctx.roundRect(
     sliderLeft - sliderHeight / 2,
@@ -489,8 +531,12 @@ for (let frame = 0; frame < maxFrame; frame++) {
   ctx.clip();
   ctx.drawImage(drawGl(sliderProgram, frame), 0, 0);
   ctx.restore();
+  stop("draw-slider-2");
+  stop("draw-slider");
 
+  start("draw-text");
   // Write the slider value
+  start("draw-text-1");
   ctx.font = "14px Arial";
   ctx.fillStyle = "white";
   ctx.textBaseline = "bottom";
@@ -500,24 +546,30 @@ for (let frame = 0; frame < maxFrame; frame++) {
     sliderLeft + 8,
     sliderTop - 3
   );
+  stop("draw-text-1");
 
   // Write the level
+  start("draw-text-2");
   ctx.font = "14px Arial";
   ctx.textAlign = "right";
   ctx.fillStyle = "white";
   ctx.textBaseline = "bottom";
   ctx.textAlign = "right";
   ctx.fillText(`Level ${level}`, sliderRight - 8, sliderTop - 3);
+  stop("draw-text-2");
 
   // Write the rank
+  start("draw-text-3");
   ctx.font = "13px Arial";
   ctx.textAlign = "right";
   ctx.fillStyle = "#ddd";
   ctx.textBaseline = "bottom";
   ctx.textAlign = "right";
   ctx.fillText(`#${rank}`, sliderRight - 8, sliderTop - 20);
+  stop("draw-text-3");
 
   // Clip the username
+  start("clip-username");
   ctx.save();
   ctx.beginPath();
   ctx.roundRect(
@@ -528,59 +580,55 @@ for (let frame = 0; frame < maxFrame; frame++) {
     boxRadius
   );
   ctx.clip();
+  stop("clip-username");
 
   // Write the username
+  start("draw-username");
   ctx.font = "24px Arial";
   ctx.fillStyle = "white";
   ctx.textBaseline = "top";
   ctx.textAlign = "left";
   ctx.fillText(username, placement + avatarSize, boxMargin + textMargin);
+  stop("draw-username");
+  stop("draw-text");
 
   // Restore the clip
   ctx.restore();
 
   // Collect the frame
+  start("collect-frame");
   const imageData = ctx.getImageData(0, 0, width, height);
   encoder.addFrame(imageData.data);
+  stop("collect-frame");
   // frames.push(imageData.data);
 
   // Write the frame to a file
+  start("write-frame");
   const frameNumber = String(frame).padStart(3, "0");
   const wait = canvas.toBuffer("png").then((buffer) => {
     console.log(`Writing frame ${frameNumber}`);
     fs.writeFileSync(`output/frame-${frameNumber}.png`, buffer);
   });
   bufferPromises.push(wait);
+  stop("write-frame");
+  stop("draw-frame");
 }
+stop("draw-frames");
 
-const endFrameRender = process.hrtime(start);
+console.log("");
 
-process.stdout.write("\n");
-
+start("encoder-finish");
 encoder.finish();
+stop("encoder-finish");
 
-const endEncoding = process.hrtime(start);
-
+start("buffer-promises");
 await Promise.all(bufferPromises);
+stop("buffer-promises");
 
-process.stdout.write("Done!\n");
+console.log("Done!");
 
-const end = process.hrtime(start);
-const secondsEnd = end[0] + end[1] / 1e9;
-const secondsFrameRender = endFrameRender[0] + endFrameRender[1] / 1e9;
-const secondsEncoding =
-  endEncoding[0] + endEncoding[1] / 1e9 - secondsFrameRender;
-
-const averageEnd = secondsEnd / maxFrame;
-const averageFrameRender = secondsFrameRender / maxFrame;
-const averageEncoding = secondsEncoding / maxFrame;
-
-console.log(`Total time: ${secondsEnd.toFixed(3)}s`);
-console.log(`Average time: ${averageEnd.toFixed(3)}s/frame`);
-console.log(`Frame render time: ${secondsFrameRender.toFixed(3)}s`);
-console.log(
-  `Average frame render time: ${averageFrameRender.toFixed(3)}s/frame`
-);
-console.log(`Encoding time: ${secondsEncoding.toFixed(3)}s`);
-console.log(`Average encoding time: ${averageEncoding.toFixed(3)}s/frame`);
 console.log(`Output file: ${outputFile}`);
+
+stop("total");
+
+report();
