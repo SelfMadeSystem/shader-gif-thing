@@ -8,21 +8,11 @@ The main problems is with the `gl` node module.
 
 #### Ubuntu
 
-On Ubuntu, these are the dependencies you need to install for the `gl` module to work:
+On Ubuntu, these are the dependencies you need to install for the `gl` module to work. I've also made a custom GIF module that uses `libimagequant` and `cgif` to generate GIFs. `cgif` is included in this repository, but you need to install `libimagequant` yourself.
 
 ```bash
-sudo apt-get install libx11-dev libxi-dev libxext-dev build-essential libpixman-1-dev libcairo2-dev libpango1.0-dev libgif-dev libgl1-mesa-dev python-is-python3
+sudo apt-get install libx11-dev libxi-dev libxext-dev build-essential libpixman-1-dev libcairo2-dev libpango1.0-dev libgif-dev libgl1-mesa-dev python-is-python3 libimagequant-dev
 ```
-
-### On Windows
-
-Follow the instructions for:
-
-- [node-gyp](https://github.com/nodejs/node-gyp#on-windows)
-
-### On MacOS
-
-I don't have a Mac. Good luck.
 
 ## Running
 

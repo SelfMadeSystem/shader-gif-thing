@@ -1,0 +1,3 @@
+[submodule "cgif"]
+	path = cgif
+	url = https://github.com/dloebl/cgif

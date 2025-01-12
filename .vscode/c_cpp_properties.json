@@ -1,0 +1,17 @@
+{
+  "configurations": [
+    {
+      "name": "Linux",
+      "intelliSenseMode": "linux-gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "c17",
+      "cppStandard": "c++14",
+      "includePath": [
+        "${workspaceFolder}/node_modules/node-addon-api",
+        "${workspaceFolder}/cgif/inc",
+        "/usr/include/node"
+      ]
+    }
+  ],
+  "version": 4
+}

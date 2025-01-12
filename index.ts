@@ -152,7 +152,7 @@ float random(float t)
     return (
     cos(t + ${Math.random() * Math.PI}) +
     sin(t * 2. + ${Math.random() * Math.PI}) +
-    cos(t * 3. + ${Math.random() * Math.PI}) * 0.5) / 2.5;   
+    cos(t * 3. + ${Math.random() * Math.PI}) * 0.5) / 2.5;
 }
 
 float getPlasmaY(float x, float horizontalFade, float offset)   

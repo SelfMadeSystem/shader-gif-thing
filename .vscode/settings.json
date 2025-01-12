@@ -1,0 +1,7 @@
+{
+  "C_Cpp.default.compilerPath": "/usr/bin/gcc",
+  "files.associations": {
+    "*.css": "tailwindcss",
+    "ios": "cpp"
+  }
+}
