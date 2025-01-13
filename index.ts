@@ -3,6 +3,8 @@ import createGLContext from "gl";
 import { Canvas, ImageData, loadImage, FontLibrary } from "skia-canvas";
 import { Vibrant } from "node-vibrant/node";
 import sharp from "sharp";
+import ffmpeg from "fluent-ffmpeg";
+import { PassThrough } from "stream";
 import { start, report, stop } from "./bench.ts";
 
 start("total");
@@ -406,9 +408,6 @@ const canvas = new Canvas(width, height);
 const ctx = canvas.getContext("2d");
 stop("create-canvas");
 
-// const frames: Uint8ClampedArray[] = [];
-const bufferPromises: Promise<void>[] = [];
-
 console.log(`FPS: ${(maxFrame / duration).toFixed(3)}`);
 console.log(`ms/F: ${Math.floor((duration / maxFrame) * 1000)}`);
 
@@ -444,6 +443,42 @@ function drawGl(program: WebGLProgram, frame: number) {
   return imageData;
 }
 
+function encodeFramesToGif(
+  frames: Uint8Array[],
+  width: number,
+  height: number,
+  outputFile: string
+) {
+  return new Promise<void>((resolve, reject) => {
+    const ffmpegStream = new PassThrough();
+    const command = ffmpeg(ffmpegStream)
+      .inputFormat("rawvideo")
+      .inputOptions(["-pix_fmt rgba", `-s ${width}x${height}`, `-r ${fps}`])
+      .outputOptions(["-vf", `scale=${width}:${height}`, "-pix_fmt", "rgb24"])
+      .output(outputFile)
+      .on("end", () => {
+        console.log("Encoding finished.");
+        resolve();
+      })
+      .on("error", (err) => {
+        console.error("Error during encoding:", err);
+        reject(err);
+      });
+
+    command.run();
+
+    for (const frame of frames) {
+      const buffer = Buffer.from(frame);
+      ffmpegStream.write(buffer);
+    }
+
+    ffmpegStream.end();
+  });
+}
+
+const frames: Uint8Array[] = [];
+
+start("total-without-setup");
 start("draw-frames");
 for (let frame = 0; frame < maxFrame; frame++) {
   start("draw-frame");
@@ -602,29 +637,28 @@ for (let frame = 0; frame < maxFrame; frame++) {
   // Restore the clip
   ctx.restore();
 
-  // Write the frame to a file
-  start("write-frame");
-  const frameNumber = String(frame).padStart(3, "0");
-  const wait = canvas.toBuffer("png").then((buffer) => {
-    console.log(`Writing frame ${frameNumber}`);
-    fs.writeFileSync(`output/frame-${frameNumber}.png`, buffer);
-  });
-  bufferPromises.push(wait);
-  stop("write-frame");
+  // Put the pixels into the frames
+  start("put-pixels");
+  const pixels = ctx.getImageData(0, 0, width, height).data;
+  frames.push(new Uint8Array(pixels));
+  stop("put-pixels");
   stop("draw-frame");
 }
 stop("draw-frames");
 
-console.log("");
+console.log("Encoding GIF...");
 
-start("buffer-promises");
-await Promise.all(bufferPromises);
-stop("buffer-promises");
+start("encode-gif", frames.length);
+
+await encodeFramesToGif(frames, width, height, outputFile);
+
+stop("encode-gif");
 
 console.log("Done!");
 
 console.log(`Output file: ${outputFile}`);
 
+stop("total-without-setup");
 stop("total");
 
-report();
+await report();
