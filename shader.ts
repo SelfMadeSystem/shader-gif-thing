@@ -425,7 +425,8 @@ export function renderGl(
     gl.RGBA,
     gl.RGBA,
     gl.UNSIGNED_BYTE,
-    stencilCanvasData
+    // @ts-expect-error
+    stencilCanvasData // missing `colorSpace` property, but it's not used by headless-gl
   );
 
   const canvasTexture = gl.createTexture();
@@ -444,6 +445,7 @@ export function renderGl(
     gl.RGBA,
     gl.RGBA,
     gl.UNSIGNED_BYTE,
+    // @ts-expect-error
     canvasData
   );
   stop("getTextures");
