@@ -19,10 +19,10 @@ stop("avatar");
 const userOptions = new UserOptions(
   avatar,
   "SelfMadeSystem",
-  100,
-  200,
-  2,
-  1,
+  1354,
+  1200,
+  1600,
+  19,
   1,
   palette
 );
