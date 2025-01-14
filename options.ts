@@ -1,6 +1,6 @@
 import createGLContext from "gl";
 import type { Palette } from "@vibrant/color";
-import type { Canvas, CanvasRenderingContext2D, Image } from "skia-canvas";
+import type { CanvasRenderingContext2D, Image } from "canvas";
 
 export class PlacementOptions {
   public fps = 30;

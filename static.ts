@@ -1,9 +1,9 @@
-import { Canvas, FontLibrary, loadImage } from "skia-canvas";
+// import { Canvas, FontLibrary } from "skia-canvas";
+import { createCanvas, registerFont } from "canvas";
 import { PlacementOptions, UserOptions } from "./options.ts";
-import { bufferFromUrl } from "./utils.ts";
-import { Vibrant } from "node-vibrant/node";
 
-FontLibrary.use("Noto Custom", ["./assets/NotoSans-Custom.ttf"]);
+// FontLibrary.use("Noto Custom", ["./assets/NotoSans-Custom.ttf"]);
+registerFont("./assets/NotoSans-Custom.ttf", { family: "Noto Custom" });
 
 export function renderStatic(
   {
@@ -30,9 +30,9 @@ export function renderStatic(
     sliderTop,
   }: PlacementOptions
 ) {
-  const stencilCanvas = new Canvas(width, height);
+  const stencilCanvas = createCanvas(width, height);
   const stencilCtx = stencilCanvas.getContext("2d");
-  const canvas = new Canvas(width, height);
+  const canvas = createCanvas(width, height);
   const ctx = canvas.getContext("2d");
 
   // Draw the box
@@ -59,11 +59,6 @@ export function renderStatic(
   );
   ctx.clip();
 
-  // Draw a blur effect
-  ctx.filter = "blur(12px)";
-  ctx.drawImage(canvas, 0, 0);
-  ctx.filter = "none";
-
   // Draw the avatar background
   ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
   ctx.fill();
@@ -80,13 +75,10 @@ export function renderStatic(
   stencilCtx.save();
   ctx.beginPath();
   stencilCtx.beginPath();
-  ctx.roundRect(sliderLeft, sliderTop, sliderWidth, sliderHeight, sliderHeight);
-  stencilCtx.roundRect(sliderLeft, sliderTop, sliderWidth, sliderHeight, sliderHeight);
+  ctx.roundRect(sliderLeft, sliderTop, sliderWidth, sliderHeight, sliderHeight / 2);
+  stencilCtx.roundRect(sliderLeft, sliderTop, sliderWidth, sliderHeight, sliderHeight / 2);
   ctx.clip();
   stencilCtx.clip();
-  ctx.filter = "blur(8px)";
-  ctx.drawImage(canvas, 0, 0);
-  ctx.filter = "none";
   ctx.fill();
 
   ctx.beginPath();
@@ -96,14 +88,14 @@ export function renderStatic(
     sliderTop,
     sliderWidth * sliderValue + sliderHeight / 2,
     sliderHeight,
-    sliderHeight
+    sliderHeight / 2
   );
   stencilCtx.roundRect(
     sliderLeft - sliderHeight / 2,
     sliderTop,
     sliderWidth * sliderValue + sliderHeight / 2,
     sliderHeight,
-    sliderHeight
+    sliderHeight / 2
   );
   ctx.clip();
   stencilCtx.clip();

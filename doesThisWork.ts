@@ -1,8 +1,9 @@
 import { renderStatic } from "./static.ts";
 import { renderGl, setupGl } from "./shader.ts";
-import { PlacementOptions, UserOptions, GlOptions } from "./options.ts";
+import { PlacementOptions, UserOptions } from "./options.ts";
 import { bufferFromUrl, encodeFramesToGif } from "./utils.ts";
-import { loadImage } from "skia-canvas";
+// import { loadImage } from "skia-canvas";
+import { loadImage } from "canvas";
 import { Vibrant } from "node-vibrant/node";
 import { start, stop, report } from "./bench.ts";
 
