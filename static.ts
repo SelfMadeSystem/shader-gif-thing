@@ -35,10 +35,6 @@ export function renderStatic(
   const canvas = new Canvas(width, height);
   const ctx = canvas.getContext("2d");
 
-  // Stencil should be black by default
-  stencilCtx.fillStyle = "black";
-  stencilCtx.fillRect(0, 0, width, height);
-
   // Draw the box
   ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
   ctx.beginPath();
@@ -111,8 +107,7 @@ export function renderStatic(
   );
   ctx.clip();
   stencilCtx.clip();
-  ctx.fillStyle = "#f0f";
-  stencilCtx.fillStyle = "#fff";
+  ctx.fillStyle = "#f0f0";
   ctx.fill();
   stencilCtx.fill();
   ctx.restore();

@@ -144,6 +144,7 @@ precision mediump float;
 const int maxFrame = ${frames};
 varying vec2 v_uv;
 uniform int u_frame;
+uniform sampler2D u_stencil;
 #define PI 3.14159265359
 
 vec4 colormap (float x) {
@@ -156,15 +157,15 @@ vec4 colormap (float x) {
   const float e3 = 0.38;
   const vec4 v3 = vec4(0.26666666666666666,0.5725490196078431,0.9058823529411765,1);
   const float e4 = 0.5;
-  const vec4 v4 = vec4(0,0.8,0.7725490196078432,0);
+  const vec4 v4 = vec4(0,0.8,0.7725490196078432,1);
   const float e5 = 0.63;
-  const vec4 v5 = vec4(0,0.9686274509803922,0.5725490196078431,0);
+  const vec4 v5 = vec4(0,0.9686274509803922,0.5725490196078431,1);
   const float e6 = 0.75;
-  const vec4 v6 = vec4(0,1,0.34509803921568627,0);
+  const vec4 v6 = vec4(0,1,0.34509803921568627,1);
   const float e7 = 0.88;
-  const vec4 v7 = vec4(0.1568627450980392,1,0.03137254901960784,0);
+  const vec4 v7 = vec4(0.1568627450980392,1,0.03137254901960784,1);
   const float e8 = 1.0;
-  const vec4 v8 = vec4(0.5764705882352941,1,0,0);
+  const vec4 v8 = vec4(0.5764705882352941,1,0,1);
   float a0 = smoothstep(e0,e1,x);
   float a1 = smoothstep(e1,e2,x);
   float a2 = smoothstep(e2,e3,x);
@@ -248,7 +249,8 @@ float pattern( in vec2 p )
 void main()
 {
 	float shade = pattern(v_uv);
-  gl_FragColor = colormap(shade);
+  vec4 stencilColor = texture2D(u_stencil, v_uv);
+  gl_FragColor = colormap(shade) * stencilColor.a;
 }
 `;
 
@@ -328,16 +330,13 @@ void main() {
   gl.enableVertexAttribArray(sliderPositionLocation);
   gl.vertexAttribPointer(sliderPositionLocation, 2, gl.FLOAT, false, 0, 0);
 
-  const frameLocationsByProgram = new Map<WebGLProgram, WebGLUniformLocation>();
-
-  frameLocationsByProgram.set(
-    bgProgram,
-    gl.getUniformLocation(bgProgram, "u_frame")!
-  );
-  frameLocationsByProgram.set(
+  const sliderStencilLocation = gl.getUniformLocation(
     sliderProgram,
-    gl.getUniformLocation(sliderProgram, "u_frame")!
+    "u_stencil"
   );
+
+  const bgFrameLocation = gl.getUniformLocation(bgProgram, "u_frame");
+  const sliderFrameLocation = gl.getUniformLocation(sliderProgram, "u_frame");
 
   // Create the simple program
   const simpleProgram = gl.createProgram();
@@ -397,16 +396,6 @@ void main() {
     canvasData
   );
 
-  function drawGl(program: WebGLProgram, frame: number) {
-    // Set the frame
-    gl.useProgram(program);
-    const frameLocation = frameLocationsByProgram.get(program)!;
-    gl.uniform1i(frameLocation, frame);
-
-    // Draw the program
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
-  }
-
   function drawTexture(texture: WebGLTexture) {
     gl.useProgram(simpleProgram);
     gl.activeTexture(gl.TEXTURE0);
@@ -425,27 +414,20 @@ void main() {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     // Draw background
-    drawGl(bgProgram, frame);
+    gl.useProgram(bgProgram);
+    gl.uniform1i(bgFrameLocation, frame);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
 
     // Draw canvas image
     drawTexture(canvasTexture);
 
-    // Apply stencil mask for slider
-    gl.enable(gl.STENCIL_TEST);
-    gl.stencilFunc(gl.ALWAYS, 1, 0xff);
-    gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);
-    gl.colorMask(false, false, false, false);
+    // Draw slider
+    gl.useProgram(sliderProgram);
+    gl.uniform1i(sliderFrameLocation, frame);
+    gl.uniform1i(sliderStencilLocation, 0);
+    gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, stencilTexture);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
-    gl.colorMask(true, true, true, true);
-
-    // Draw slider
-    gl.stencilFunc(gl.EQUAL, 1, 0xff);
-    gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
-    drawGl(sliderProgram, frame);
-
-    // Disable stencil test
-    gl.disable(gl.STENCIL_TEST);
 
     // Read the pixels from the framebuffer
     start("readPixels");
