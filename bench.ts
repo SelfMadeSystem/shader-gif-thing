@@ -9,22 +9,37 @@ type TimeState = {
   accum: number;
   start: number | null;
   count: number;
+  children: Map<string, TimeState>;
+  parent: TimeState | null;
 };
 
 const timeMap = new Map<string, TimeState>();
+let current: TimeState | null = null;
 let maxMemoryUsage = 0;
 
 export function start(name: string, count: number = 1) {
-  if (timeMap.has(name)) {
-    timeMap.get(name)!.start = performance.now();
-    timeMap.get(name)!.count += count;
+  const map = current ? current.children : timeMap;
+
+  if (map.has(name)) {
+    map.get(name)!.start = performance.now();
+    map.get(name)!.count += count;
   } else {
-    timeMap.set(name, { accum: 0, start: performance.now(), count });
+    map.set(name, {
+      accum: 0,
+      start: performance.now(),
+      count,
+      children: new Map(),
+      parent: current,
+    });
   }
+
+  current = map.get(name) ?? null;
 }
 
 export function stop(name: string) {
-  const state = timeMap.get(name);
+  const map = current?.parent ? current.parent.children : timeMap;
+
+  const state = map.get(name);
   if (state && state.start !== null) {
     state.accum += performance.now() - state.start;
     state.start = null;
@@ -33,6 +48,8 @@ export function stop(name: string) {
   if (memoryUsage > maxMemoryUsage) {
     maxMemoryUsage = memoryUsage;
   }
+
+  current = state?.parent ?? null;
 }
 
 function reportState(state: TimeState): string {
@@ -64,11 +81,22 @@ ${gpuInfo.map((gpu) => `  GPU: ${gpu}\n`).join("")}
 `;
 }
 
+function reportStateTree(name: string, state: TimeState, depth: number = 0): string {
+  const indent = "  ".repeat(depth);
+  let report = `${indent}${name}: ${reportState(state)}\n`;
+  for (const c of state.children) {
+    report += reportStateTree(...c, depth + 1);
+  }
+  return report;
+}
+
 export async function report() {
   let report = await getSysInfo();
-  report += `Max Memory Usage: ${(maxMemoryUsage / 1024 ** 2).toFixed(2)} MB\n\n`;
+  report += `Max Memory Usage: ${(maxMemoryUsage / 1024 ** 2).toFixed(
+    2
+  )} MB\n\n`;
   for (const [name, state] of timeMap) {
-    report += `${name}: ${reportState(state)}\n`;
+    report += reportStateTree(name, state, 0);
   }
   writeFileSync(OUTPUT_FILE, report);
   console.log("Benchmark report written to:", OUTPUT_FILE);
