@@ -162,5 +162,5 @@ export function renderStatic(
   // Restore the clip
   ctx.restore();
 
-  return [canvas, stencilCanvas] as const;
+  return [ctx, stencilCtx] as const;
 }

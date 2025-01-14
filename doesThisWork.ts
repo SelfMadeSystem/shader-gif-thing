@@ -1,5 +1,5 @@
 import { renderStatic } from "./static.ts";
-import { renderGl } from "./shader.ts";
+import { renderGl, setupGl } from "./shader.ts";
 import { PlacementOptions, UserOptions, GlOptions } from "./options.ts";
 import { bufferFromUrl, encodeFramesToGif } from "./utils.ts";
 import { loadImage } from "skia-canvas";
@@ -30,10 +30,14 @@ const userOptions = new UserOptions(
 const placementOptions = new PlacementOptions();
 
 start("renderStatic");
-const [canvas, stencilCanvas] = renderStatic(userOptions, placementOptions);
+const [ctx, stencilCtx] = renderStatic(userOptions, placementOptions);
 stop("renderStatic");
 
-const glOptions = new GlOptions(canvas, stencilCanvas);
+start("setupGl");
+const glOptions = setupGl(placementOptions);
+glOptions.ctx = ctx;
+glOptions.stencilCtx = stencilCtx;
+stop("setupGl");
 
 start("renderGl");
 const stuff: Uint8Array[] = renderGl(placementOptions, userOptions, glOptions);
@@ -42,9 +46,9 @@ stop("renderGl");
 start("encodeFramesToGif");
 await encodeFramesToGif(
   stuff,
-  glOptions.fps,
-  glOptions.canvas.width,
-  glOptions.canvas.height,
+  placementOptions.fps,
+  placementOptions.width,
+  placementOptions.height,
   "output/output.gif"
 );
 stop("encodeFramesToGif");

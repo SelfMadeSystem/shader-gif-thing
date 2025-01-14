@@ -3,14 +3,11 @@ import { PlacementOptions, UserOptions, GlOptions } from "./options.ts";
 import { compileShader } from "./utils.ts";
 import { start, stop } from "./bench.ts";
 
-export function renderGl(
-  { width, height }: PlacementOptions,
-  { palette }: UserOptions,
-  { canvas, stencilCanvas, frames }: GlOptions
-) {
-  start("setupGl");
-  const c = palette.Vibrant!;
-
+export function setupGl({
+  frames,
+  width,
+  height,
+}: PlacementOptions): GlOptions {
   // Create a simple gradient shader
   const vertexShaderSource = /* glsl */ `
 attribute vec2 a_position;
@@ -39,7 +36,7 @@ const float minorLineWidth = 0.0125;
 const float majorLineFrequency = 1.0;
 const float minorLineFrequency = 1.0;
 const float scale = 5.0;
-const vec4 lineColor = vec4(${c.r / 255}, ${c.g / 255}, ${c.b / 255}, 1.0);
+uniform vec4 lineColor; // vec4({c.r / 255}, {c.g / 255}, {c.b / 255}, 1.0)
 const float minLineWidth = 0.02;
 const float maxLineWidth = 0.5;
 const float lineSpeed = 2. * PI * overallSpeed;
@@ -335,8 +332,22 @@ void main() {
     "u_stencil"
   );
 
+  if (!sliderStencilLocation) {
+    throw new Error("Failed to get slider stencil location");
+  }
+
   const bgFrameLocation = gl.getUniformLocation(bgProgram, "u_frame");
   const sliderFrameLocation = gl.getUniformLocation(sliderProgram, "u_frame");
+
+  if (!bgFrameLocation || !sliderFrameLocation) {
+    throw new Error("Failed to get frame location");
+  }
+
+  const bgColorLocation = gl.getUniformLocation(bgProgram, "lineColor");
+
+  if (!bgColorLocation) {
+    throw new Error("Failed to get bg color location");
+  }
 
   // Create the simple program
   const simpleProgram = gl.createProgram();
@@ -357,6 +368,43 @@ void main() {
   gl.enableVertexAttribArray(simplePositionLocation);
   gl.vertexAttribPointer(simplePositionLocation, 2, gl.FLOAT, false, 0, 0);
 
+  return new GlOptions(
+    gl,
+    bgProgram,
+    sliderProgram,
+    simpleProgram,
+    sliderStencilLocation,
+    bgFrameLocation,
+    sliderFrameLocation,
+    bgColorLocation
+  );
+}
+
+export function renderGl(
+  { frames, width, height }: PlacementOptions,
+  { palette }: UserOptions,
+  {
+    sliderProgram,
+    sliderFrameLocation,
+    sliderStencilLocation,
+    bgProgram,
+    bgFrameLocation,
+    bgColorLocation,
+    simpleProgram,
+    gl,
+    ctx: canvas,
+    stencilCtx: stencilCanvas,
+  }: GlOptions
+) {
+  if (!canvas || !stencilCanvas) {
+    throw new Error("Missing canvas or stencilCanvas");
+  }
+  start("initGl");
+  const c = palette.Vibrant!;
+
+  gl.useProgram(bgProgram);
+  gl.uniform4f(bgColorLocation, c.r / 255, c.g / 255, c.b / 255, 1);
+
   const textureLocation = gl.getUniformLocation(simpleProgram, "u_texture");
 
   const stencilTexture = gl.createTexture();
@@ -367,9 +415,10 @@ void main() {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
   // Get the canvas's textures
-  const stencilCanvasData = stencilCanvas
-    .getContext("2d")!
-    .getImageData(0, 0, width, height);
+  start("getTextures");
+  start("getImageData");
+  const stencilCanvasData = stencilCanvas.getImageData(0, 0, width, height);
+  stop("getImageData");
   gl.texImage2D(
     gl.TEXTURE_2D,
     0,
@@ -386,7 +435,9 @@ void main() {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
-  const canvasData = canvas.getContext("2d")!.getImageData(0, 0, width, height);
+  start("getImageData");
+  const canvasData = canvas.getImageData(0, 0, width, height);
+  stop("getImageData");
   gl.texImage2D(
     gl.TEXTURE_2D,
     0,
@@ -395,18 +446,19 @@ void main() {
     gl.UNSIGNED_BYTE,
     canvasData
   );
+  stop("getTextures");
 
-  function drawTexture(texture: WebGLTexture) {
+  const drawTexture = (texture: WebGLTexture) => {
     gl.useProgram(simpleProgram);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.uniform1i(textureLocation, 0);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
-  }
+  };
 
   const frameArray: Uint8Array[] = [];
 
-  stop("setupGl");
+  stop("initGl");
 
   start("drawFrames");
   for (let frame = 0; frame < frames; frame++) {

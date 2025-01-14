@@ -1,7 +1,10 @@
+import createGLContext from "gl";
 import type { Palette } from "@vibrant/color";
-import type { Canvas, Image } from "skia-canvas";
+import type { Canvas, CanvasRenderingContext2D, Image } from "skia-canvas";
 
 export class PlacementOptions {
+  public fps = 30;
+  public duration = 4;
   public width = 375;
   public height = 150;
   public avatarSize = 100;
@@ -9,6 +12,10 @@ export class PlacementOptions {
   public boxRadius = 20;
   public textMargin = 20;
   public sliderHeight = 20;
+
+  get frames() {
+    return this.fps * this.duration;
+  }
 
   get placement() {
     return (this.height - this.avatarSize) / 2;
@@ -36,18 +43,35 @@ export class PlacementOptions {
 }
 
 export class GlOptions {
-  public fps = 30;
-  public duration = 4;
-  public canvas: Canvas;
-  public stencilCanvas: Canvas;
+  public ctx: CanvasRenderingContext2D | undefined;
+  public stencilCtx: CanvasRenderingContext2D | undefined;
+  public gl: ReturnType<typeof createGLContext>;
+  public bgProgram: WebGLProgram;
+  public sliderProgram: WebGLProgram;
+  public simpleProgram: WebGLProgram;
+  public sliderStencilLocation: WebGLUniformLocation;
+  public bgFrameLocation: WebGLUniformLocation;
+  public sliderFrameLocation: WebGLUniformLocation;
+  public bgColorLocation: WebGLUniformLocation;
 
-  constructor(canvas: Canvas, stencilCanvas: Canvas) {
-    this.canvas = canvas;
-    this.stencilCanvas = stencilCanvas;
-  }
-
-  get frames() {
-    return this.fps * this.duration;
+  constructor(
+    gl: ReturnType<typeof createGLContext>,
+    bgProgram: WebGLProgram,
+    sliderProgram: WebGLProgram,
+    simpleProgram: WebGLProgram,
+    sliderStencilLocation: WebGLUniformLocation,
+    bgFrameLocation: WebGLUniformLocation,
+    sliderFrameLocation: WebGLUniformLocation,
+    bgColorLocation: WebGLUniformLocation
+  ) {
+    this.gl = gl;
+    this.bgProgram = bgProgram;
+    this.sliderProgram = sliderProgram;
+    this.simpleProgram = simpleProgram;
+    this.sliderStencilLocation = sliderStencilLocation;
+    this.bgFrameLocation = bgFrameLocation;
+    this.sliderFrameLocation = sliderFrameLocation;
+    this.bgColorLocation = bgColorLocation;
   }
 }
 
