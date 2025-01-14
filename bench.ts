@@ -88,13 +88,13 @@ function reportStateTree(
   isLast: boolean = true,
   prefix: string = ""
 ): string {
-  const indent = depth > 0 ? prefix + (isLast ? "└─" : "├─") : "";
+  const indent = depth > 0 ? prefix + (isLast ? "└── " : "├── ") : "";
   let report = `${indent}${name}: ${reportState(state)}\n`;
   const children = Array.from(state.children.entries());
   for (let i = 0; i < children.length; i++) {
     const [childName, childState] = children[i];
     const childIsLast = i === children.length - 1;
-    const newPrefix = depth === 0 ? "" : prefix + (isLast ? "  " : "│ ");
+    const newPrefix = depth === 0 ? "" : prefix + (isLast ? "    " : "│   ");
     report += reportStateTree(
       childName,
       childState,
