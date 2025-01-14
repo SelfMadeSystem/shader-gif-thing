@@ -124,10 +124,10 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     
     fragColor = mix(lineColor * 0.5, lineColor, uv.x);
     fragColor *= verticalFade;
-    fragColor.a = 1.0;
     // debug grid:
-    //fragColor = mix(fragColor, gridColor, drawGrid(space));
+    // fragColor = mix(fragColor, vec4(1.,0.,0.,1.), drawGrid(space));
     fragColor += lines;
+    fragColor.a = 1.0;
 }
 
 void main() {

@@ -41,6 +41,14 @@ export function encodeFramesToGif(
     const command = ffmpeg(ffmpegStream)
       .inputFormat("rawvideo")
       .inputOptions(["-pix_fmt rgba", `-s ${width}x${height}`, `-r ${fps}`])
+      /* 
+      .outputOptions([
+        "-vf", `split[x][y];[x]palettegen=max_colors=256:stats_mode=single[p];[y][p]paletteuse=dither=sierra2_4a:diff_mode=rectangle`,
+        `-s ${width}x${height}`,
+        "-q:v", "1",
+        "-compression_level", "9"
+      ])
+      */
       .outputOptions(["-vf", `scale=${width}:${height}`, "-pix_fmt", "rgb24"])
       .output(outputFile)
       .on("end", () => {
