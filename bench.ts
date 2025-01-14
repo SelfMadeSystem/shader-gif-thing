@@ -81,11 +81,27 @@ ${gpuInfo.map((gpu) => `  GPU: ${gpu}\n`).join("")}
 `;
 }
 
-function reportStateTree(name: string, state: TimeState, depth: number = 0): string {
-  const indent = "  ".repeat(depth);
+function reportStateTree(
+  name: string,
+  state: TimeState,
+  depth: number = 0,
+  isLast: boolean = true,
+  prefix: string = ""
+): string {
+  const indent = depth > 0 ? prefix + (isLast ? "└─" : "├─") : "";
   let report = `${indent}${name}: ${reportState(state)}\n`;
-  for (const c of state.children) {
-    report += reportStateTree(...c, depth + 1);
+  const children = Array.from(state.children.entries());
+  for (let i = 0; i < children.length; i++) {
+    const [childName, childState] = children[i];
+    const childIsLast = i === children.length - 1;
+    const newPrefix = depth === 0 ? "" : prefix + (isLast ? "  " : "│ ");
+    report += reportStateTree(
+      childName,
+      childState,
+      depth + 1,
+      childIsLast,
+      newPrefix
+    );
   }
   return report;
 }
@@ -96,7 +112,7 @@ export async function report() {
     2
   )} MB\n\n`;
   for (const [name, state] of timeMap) {
-    report += reportStateTree(name, state, 0);
+    report += reportStateTree(name, state);
   }
   writeFileSync(OUTPUT_FILE, report);
   console.log("Benchmark report written to:", OUTPUT_FILE);
