@@ -45,7 +45,7 @@ export function encodeFramesToGif(
         "-vf split[x][y];[x]palettegen=max_colors=256:stats_mode=full[p];[y][p]paletteuse=dither=bayer:bayer_scale=3:diff_mode=rectangle",
         `-s ${width}x${height}`,
         "-q:v 1",
-        "-compression_level 10"
+        "-compression_level 10",
       ])
       // .outputOptions(["-vf", `scale=${width}:${height}`, "-pix_fmt", "rgb24"])
       .output(outputFile)
