@@ -1,13 +1,18 @@
 import sharp from "sharp";
 import { PassThrough } from "stream";
 import ffmpeg from "fluent-ffmpeg";
+import { start, stop } from "./bench.ts";
 
 export async function bufferFromUrl(url: string) {
+  start("fetch");
   const response = await fetch(url);
   const arrayBuffer = await response.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
+  stop("fetch");
 
+  start("sharp");
   const pngBuffer = await sharp(buffer).png().toBuffer();
+  stop("sharp");
 
   return pngBuffer;
 }
