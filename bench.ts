@@ -7,6 +7,8 @@ const OUTPUT_FILE = "output/bench.txt";
 
 type TimeState = {
   accum: number;
+  min: number;
+  max: number;
   start: number | null;
   count: number;
   children: Map<string, TimeState>;
@@ -26,6 +28,8 @@ export function start(name: string, count: number = 1) {
   } else {
     map.set(name, {
       accum: 0,
+      min: Infinity,
+      max: 0,
       start: performance.now(),
       count,
       children: new Map(),
@@ -41,8 +45,15 @@ export function stop(name: string) {
 
   const state = map.get(name);
   if (state && state.start !== null) {
-    state.accum += performance.now() - state.start;
+    const elapsed = performance.now() - state.start;
+    state.accum += elapsed;
     state.start = null;
+    if (elapsed < state.min) {
+      state.min = elapsed;
+    }
+    if (elapsed > state.max) {
+      state.max = elapsed;
+    }
   }
   const memoryUsage = process.memoryUsage().heapUsed;
   if (memoryUsage > maxMemoryUsage) {
@@ -50,14 +61,6 @@ export function stop(name: string) {
   }
 
   current = state?.parent ?? null;
-}
-
-function reportState(state: TimeState): string {
-  if (state.count === 1) return `${state.accum.toFixed(2)}ms`;
-  else
-    return `${state.accum.toFixed(2)}ms (${state.count} times, avg: ${(
-      state.accum / state.count
-    ).toFixed(2)}ms)`;
 }
 
 async function getSysInfo(): Promise<string> {
@@ -79,6 +82,16 @@ System Information:
   Uptime: ${uptime}
 ${gpuInfo.map((gpu) => `  GPU: ${gpu}\n`).join("")}
 `;
+}
+
+function reportState(state: TimeState): string {
+  if (state.count === 1) return `${state.accum.toFixed(2)}ms`;
+  else
+    return `${state.accum.toFixed(2)}ms (${state.count} times, avg: ${(
+      state.accum / state.count
+    ).toFixed(2)}ms, min: ${state.min.toFixed(2)}ms, max: ${state.max.toFixed(
+      2
+    )}ms)`;
 }
 
 function reportStateTree(
