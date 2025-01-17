@@ -53,7 +53,8 @@ export async function fetchAccountInfo(userId: string): Promise<{
   avatar: string;
   username: string;
 }> {
-  if (userId.length !== 18 || !/^\d+$/.test(userId)) {
+  // Users made in at least like 2023 have 19 digit IDs (e.g. 1075408950373122158)
+  if (userId.length < 18 || !/^\d+$/.test(userId)) {
     return defaultAccountInfo;
   }
 
