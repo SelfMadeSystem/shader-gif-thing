@@ -77,8 +77,6 @@ export async function fetchAccountInfo(userId: string): Promise<{
 
   const data = await response.json();
 
-  console.log(data);
-
   return {
     avatar: `https://cdn.discordapp.com/avatars/${userId}/${data.avatar}.webp`,
     username: data.global_name,
