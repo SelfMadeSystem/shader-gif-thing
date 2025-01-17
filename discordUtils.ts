@@ -53,10 +53,12 @@ export async function fetchAccountInfo(userId: string): Promise<{
   avatar: string;
   username: string;
 }> {
-  if (userId.length !== 18 || !discordToken) {
-    if (!discordToken) {
-      process.emitWarning("DISCORD_TOKEN is not set");
-    }
+  if (userId.length !== 18 || !/^\d+$/.test(userId)) {
+    return defaultAccountInfo;
+  }
+
+  if (!discordToken) {
+    process.emitWarning("DISCORD_TOKEN is not set");
     return defaultAccountInfo;
   }
 

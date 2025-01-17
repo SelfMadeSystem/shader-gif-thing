@@ -9,6 +9,8 @@ import { start, stop, report } from "./bench.ts";
 import * as readline from "readline";
 import { fetchAccountInfo, getUserLevel } from "./discordUtils.ts";
 
+const discordToken = process.env.DISCORD_TOKEN;
+
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout,
@@ -45,7 +47,9 @@ async function main() {
   // Wait for deprecation warnings to pass...
   await new Promise((resolve) => setTimeout(resolve, 300));
   for (let i = 0; i < 50; i++) {
-    const accId = await askQuestion("Enter accound ID", "optional");
+    const accId = discordToken
+      ? await askQuestion("Enter accound ID", "optional")
+      : "";
 
     const accInfo = await fetchAccountInfo(accId);
 
