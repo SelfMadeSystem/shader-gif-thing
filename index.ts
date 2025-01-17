@@ -7,6 +7,7 @@ import { loadImage } from "canvas";
 import { Vibrant } from "node-vibrant/node";
 import { start, stop, report } from "./bench.ts";
 import * as readline from "readline";
+import { fetchAccountInfo, getUserLevel } from "./discordUtils.ts";
 
 const rl = readline.createInterface({
   input: process.stdin,
@@ -44,21 +45,32 @@ async function main() {
   // Wait for deprecation warnings to pass...
   await new Promise((resolve) => setTimeout(resolve, 300));
   for (let i = 0; i < 50; i++) {
-    const avatarPath = await askQuestion(
-      "Enter avatar URL",
-      "https://cdn.discordapp.com/avatars/299298175825739776/568dd2233779e3c2a037ac3186116739.webp"
-    );
-    const name = await askQuestion("Enter name", "SelfMadeSystem");
+    const accId = await askQuestion("Enter accound ID", "optional");
+
+    const accInfo = await fetchAccountInfo(accId);
+
+    const avatarPath = await askQuestion("Enter avatar URL", accInfo.avatar);
+    const name = await askQuestion("Enter name", accInfo.username);
     const points = parseInt(await askQuestion("Enter points", "1354"), 10);
+    const userLevel = getUserLevel(points);
     const pointsPrevLevel = parseInt(
-      await askQuestion("Enter pointsPrevLevel", "1200"),
+      await askQuestion(
+        "Enter pointsPrevLevel",
+        userLevel.currentLevelXp.toString()
+      ),
       10
     );
     const pointsToNextLevel = parseInt(
-      await askQuestion("Enter pointsToNextLevel", "1600"),
+      await askQuestion(
+        "Enter pointsToNextLevel",
+        userLevel.nextLevelXp.toString()
+      ),
       10
     );
-    const level = parseInt(await askQuestion("Enter level", "19"), 10);
+    const level = parseInt(
+      await askQuestion("Enter level", userLevel.level.toString()),
+      10
+    );
     const rank = parseInt(await askQuestion("Enter rank", "1"), 10);
 
     start("render");
