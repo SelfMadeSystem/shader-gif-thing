@@ -55,7 +55,7 @@ async function main() {
 
     const avatarPath = await askQuestion("Enter avatar URL", accInfo.avatar);
     const name = await askQuestion("Enter name", accInfo.username);
-    const points = parseInt(await askQuestion("Enter points", "1354"), 10);
+    const points = parseInt(await askQuestion("Enter points", "1612"), 10);
     const userLevel = getUserLevel(points);
     const pointsPrevLevel = parseInt(
       await askQuestion(
