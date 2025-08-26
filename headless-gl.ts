@@ -1,8 +1,7 @@
-import { initEGLContext, gl, NativeWebGLContext } from "./bungl/index.js";
+import { initEGLContext, gl } from "./bungl/index.js";
 import { CString } from "bun:ffi";
 
 let eglContext: any = null;
-let webglContext: NativeWebGLContext | null = null;
 let currentWidth = 0;
 let currentHeight = 0;
 
@@ -26,20 +25,12 @@ export function initHeadlessGL(width: number = 512, height: number = 512) {
     currentWidth = width;
     currentHeight = height;
 
-    // Create WebGL-compatible wrapper
-    webglContext = new NativeWebGLContext(width, height);
-
     // Test that OpenGL is working
     const version = gl.symbols.glGetString(0x1f02); // GL_VERSION
     if (version) {
       const versionStr = new CString(version);
       console.log("OpenGL Version:", versionStr);
     }
-
-    // Note: We'll set viewport in the WebGL context, not here
-    // gl.symbols.glViewport(0, 0, width, height);
-
-    return webglContext;
   } catch (error) {
     console.error("Failed to initialize headless OpenGL:", error);
     throw error;
@@ -52,7 +43,6 @@ export function cleanupHeadlessGL() {
   if (eglContext) {
     eglContext.cleanup();
     eglContext = null;
-    webglContext = null;
     currentWidth = 0;
     currentHeight = 0;
     console.log("EGL context cleaned up");

@@ -1,8 +1,6 @@
 import { gl, initEGLContext } from "./bungl/index.js";
 import { PlacementOptions, UserOptions, GlOptions } from "./options.js";
 import { start, stop } from "./bench.js";
-import { writeFileSync } from "fs";
-import sharp from "sharp";
 import { ptr } from "bun:ffi";
 
 // OpenGL constants
@@ -651,27 +649,6 @@ export function renderGl(
       console.error(
         `OpenGL error during frame ${frame}: 0x${error.toString(16)}`
       );
-    }
-
-    // for now, save the pixels as an image on the filesystem
-    {
-      const buffer = Buffer.from(pixels);
-
-      sharp(buffer, {
-        raw: {
-          width: width,
-          height: height,
-          channels: 4,
-        },
-      })
-        .png()
-        .toFile(`output/frame_${String(frame).padStart(3, "0")}.png`)
-        .then(() => {
-          console.log(`Saved frame_${String(frame).padStart(3, "0")}.png`);
-        })
-        .catch((err) => {
-          console.error("Error saving image:", err);
-        });
     }
 
     frameArray.push(pixels);

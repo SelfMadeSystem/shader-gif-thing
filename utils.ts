@@ -2,7 +2,6 @@ import sharp from "sharp";
 import { PassThrough } from "stream";
 import ffmpeg from "fluent-ffmpeg";
 import { start, stop } from "./bench.ts";
-import type { NativeWebGLContext } from "./bungl/index.js";
 
 export async function bufferFromUrl(url: string) {
   start("fetch");
@@ -16,23 +15,6 @@ export async function bufferFromUrl(url: string) {
   stop("sharp");
 
   return pngBuffer;
-}
-
-export function compileShader(
-  gl: NativeWebGLContext,
-  source: string,
-  type: number
-) {
-  const shader = gl.createShader(type);
-  if (!shader) {
-    throw new Error("Failed to create shader");
-  }
-  gl.shaderSource(shader, source);
-  gl.compileShader(shader);
-  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-    throw new Error(`Failed to compile shader: ${gl.getShaderInfoLog(shader)}`);
-  }
-  return shader;
 }
 
 export function encodeFramesToGif(

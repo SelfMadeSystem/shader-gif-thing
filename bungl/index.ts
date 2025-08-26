@@ -1,5 +1,5 @@
 /// <reference types="bun-types" />
-import { dlopen, FFIType, ptr, CString } from "bun:ffi";
+import { dlopen, FFIType, ptr } from "bun:ffi";
 
 // Load OpenGL and EGL libraries
 const gl = dlopen("libOpenGL.so", {
@@ -361,10 +361,6 @@ export function initEGLContext(width: number = 512, height: number = 512) {
       );
     }
 
-    const major = new Int32Array(majorPtr.buffer)[0];
-    const minor = new Int32Array(minorPtr.buffer)[0];
-    console.log(`EGL version: ${major}.${minor}`);
-
     // 2. Use a simpler approach - just get one config
     const configAttribs = createConfigAttribs();
 
@@ -388,7 +384,6 @@ export function initEGLContext(width: number = 512, height: number = 512) {
     }
 
     const numConfigs = new Int32Array(numConfigsPtr.buffer)[0];
-    console.log(`Found ${numConfigs} matching EGL configs`);
 
     if (numConfigs === 0) {
       throw new Error("No suitable EGL configs found");
@@ -397,7 +392,6 @@ export function initEGLContext(width: number = 512, height: number = 512) {
     // Read the EGLConfig handle from the buffer
     // EGLConfig is stored as a pointer value in the buffer
     const configValue = new BigUint64Array(configBuffer.buffer)[0];
-    console.log(`Config handle: 0x${configValue.toString(16)}`);
 
     // 3. Create a PBuffer surface - pass config as BigInt handle
     const pbufferAttribs = createPbufferAttribs(width, height);
@@ -413,7 +407,6 @@ export function initEGLContext(width: number = 512, height: number = 512) {
         `Failed to create PBuffer surface. Error: 0x${error.toString(16)}`
       );
     }
-    console.log("PBuffer surface created successfully");
 
     // 4. Bind the OpenGL API
     const bindResult = egl.symbols.eglBindAPI(EGL_OPENGL_API);
@@ -447,8 +440,6 @@ export function initEGLContext(width: number = 512, height: number = 512) {
       throw new Error("Failed to make EGL context current");
     }
 
-    console.log(`EGL context initialized successfully (${width}x${height})`);
-
     return {
       display: eglDisplay,
       surface: eglSurface,
@@ -464,283 +455,6 @@ export function initEGLContext(width: number = 512, height: number = 512) {
   } catch (error) {
     console.error("Failed to initialize EGL context:", error);
     throw error;
-  }
-}
-
-// WebGL-compatible wrapper for native OpenGL
-export class NativeWebGLContext {
-  private width: number;
-  private height: number;
-  private shaderInfoLogBuffer = Buffer.alloc(512);
-  private programInfoLogBuffer = Buffer.alloc(512);
-
-  // WebGL constants
-  readonly VERTEX_SHADER = GL_CONSTANTS.VERTEX_SHADER;
-  readonly FRAGMENT_SHADER = GL_CONSTANTS.FRAGMENT_SHADER;
-  readonly COMPILE_STATUS = GL_CONSTANTS.COMPILE_STATUS;
-  readonly LINK_STATUS = GL_CONSTANTS.LINK_STATUS;
-  readonly ARRAY_BUFFER = GL_CONSTANTS.ARRAY_BUFFER;
-  readonly STATIC_DRAW = GL_CONSTANTS.STATIC_DRAW;
-  readonly TRIANGLES = GL_CONSTANTS.TRIANGLES;
-  readonly COLOR_BUFFER_BIT = GL_CONSTANTS.COLOR_BUFFER_BIT;
-  readonly DEPTH_BUFFER_BIT = GL_CONSTANTS.DEPTH_BUFFER_BIT;
-  readonly BLEND = GL_CONSTANTS.BLEND;
-  readonly SRC_ALPHA = GL_CONSTANTS.SRC_ALPHA;
-  readonly ONE_MINUS_SRC_ALPHA = GL_CONSTANTS.ONE_MINUS_SRC_ALPHA;
-  readonly FLOAT = GL_CONSTANTS.FLOAT;
-  readonly UNSIGNED_BYTE = GL_CONSTANTS.UNSIGNED_BYTE;
-  readonly TEXTURE_2D = GL_CONSTANTS.TEXTURE_2D;
-  readonly TEXTURE_MIN_FILTER = GL_CONSTANTS.TEXTURE_MIN_FILTER;
-  readonly TEXTURE_MAG_FILTER = GL_CONSTANTS.TEXTURE_MAG_FILTER;
-  readonly TEXTURE_WRAP_S = GL_CONSTANTS.TEXTURE_WRAP_S;
-  readonly TEXTURE_WRAP_T = GL_CONSTANTS.TEXTURE_WRAP_T;
-  readonly LINEAR = GL_CONSTANTS.LINEAR;
-  readonly CLAMP_TO_EDGE = GL_CONSTANTS.CLAMP_TO_EDGE;
-  readonly TEXTURE0 = GL_CONSTANTS.TEXTURE0;
-  readonly RGBA = GL_CONSTANTS.RGBA;
-  readonly NO_ERROR = 0;
-
-  constructor(width: number, height: number) {
-    this.width = width;
-    this.height = height;
-  }
-
-  createShader(type: number): number {
-    return gl.symbols.glCreateShader(type);
-  }
-
-  shaderSource(shader: number, source: string): void {
-    const sourceBuffer = Buffer.from(source + "\0", "utf-8");
-    const sourcePtr = ptr(sourceBuffer);
-
-    // Create an array containing the pointer to the source string
-    const sourcePtrsBuffer = Buffer.alloc(8);
-    const sourcePtrsView = new BigUint64Array(sourcePtrsBuffer.buffer);
-    sourcePtrsView[0] = BigInt(sourcePtr);
-
-    // Create length array (pass null to let OpenGL calculate length)
-    gl.symbols.glShaderSource(shader, 1, ptr(sourcePtrsBuffer), null);
-  }
-
-  compileShader(shader: number): void {
-    gl.symbols.glCompileShader(shader);
-  }
-
-  getShaderParameter(shader: number, pname: number): number {
-    const result = Buffer.alloc(4);
-    gl.symbols.glGetShaderiv(shader, pname, ptr(result));
-    return new Int32Array(result.buffer)[0];
-  }
-
-  getShaderInfoLog(shader: number): string {
-    const lengthPtr = ptr(Buffer.alloc(4));
-    gl.symbols.glGetShaderInfoLog(
-      shader,
-      512,
-      lengthPtr,
-      ptr(this.shaderInfoLogBuffer)
-    );
-    return this.shaderInfoLogBuffer.toString("utf-8").split("\0")[0];
-  }
-
-  createProgram(): number {
-    return gl.symbols.glCreateProgram();
-  }
-
-  attachShader(program: number, shader: number): void {
-    gl.symbols.glAttachShader(program, shader);
-  }
-
-  linkProgram(program: number): void {
-    gl.symbols.glLinkProgram(program);
-  }
-
-  getProgramParameter(program: number, pname: number): number {
-    const result = Buffer.alloc(4);
-    gl.symbols.glGetProgramiv(program, pname, ptr(result));
-    return new Int32Array(result.buffer)[0];
-  }
-
-  getProgramInfoLog(program: number): string {
-    const lengthPtr = ptr(Buffer.alloc(4));
-    gl.symbols.glGetProgramInfoLog(
-      program,
-      512,
-      lengthPtr,
-      ptr(this.programInfoLogBuffer)
-    );
-    return this.programInfoLogBuffer.toString("utf-8").split("\0")[0];
-  }
-
-  useProgram(program: number): void {
-    gl.symbols.glUseProgram(program);
-  }
-
-  deleteShader(shader: number): void {
-    gl.symbols.glDeleteShader(shader);
-  }
-
-  createBuffer(): number {
-    const buffer = Buffer.alloc(4);
-    gl.symbols.glGenBuffers(1, ptr(buffer));
-    return new Uint32Array(buffer.buffer)[0];
-  }
-
-  bindBuffer(target: number, buffer: number | null): void {
-    gl.symbols.glBindBuffer(target, buffer || 0);
-  }
-
-  bufferData(
-    target: number,
-    data: ArrayBuffer | Float32Array,
-    usage: number
-  ): void {
-    let buffer: Buffer;
-    if (data instanceof Float32Array) {
-      buffer = Buffer.from(data.buffer);
-    } else {
-      buffer = Buffer.from(data);
-    }
-    gl.symbols.glBufferData(target, BigInt(buffer.length), ptr(buffer), usage);
-  }
-
-  getAttribLocation(program: number, name: string): number {
-    return gl.symbols.glGetAttribLocation(
-      program,
-      ptr(Buffer.from(name + "\0", "utf-8"))
-    );
-  }
-
-  enableVertexAttribArray(index: number): void {
-    gl.symbols.glEnableVertexAttribArray(index);
-  }
-
-  vertexAttribPointer(
-    index: number,
-    size: number,
-    type: number,
-    normalized: boolean,
-    stride: number,
-    offset: number
-  ): void {
-    gl.symbols.glVertexAttribPointer(
-      index,
-      size,
-      type,
-      normalized,
-      stride,
-      ptr(Buffer.alloc(8, offset))
-    );
-  }
-
-  getUniformLocation(program: number, name: string): number {
-    return gl.symbols.glGetUniformLocation(
-      program,
-      ptr(Buffer.from(name + "\0", "utf-8"))
-    );
-  }
-
-  uniform1i(location: number, value: number): void {
-    gl.symbols.glUniform1i(location, value);
-  }
-
-  uniform4f(
-    location: number,
-    x: number,
-    y: number,
-    z: number,
-    w: number
-  ): void {
-    gl.symbols.glUniform4f(location, x, y, z, w);
-  }
-
-  enable(cap: number): void {
-    gl.symbols.glEnable(cap);
-  }
-
-  blendFunc(sfactor: number, dfactor: number): void {
-    gl.symbols.glBlendFunc(sfactor, dfactor);
-  }
-
-  createTexture(): number {
-    const texture = Buffer.alloc(4);
-    gl.symbols.glGenTextures(1, ptr(texture));
-    return new Uint32Array(texture.buffer)[0];
-  }
-
-  bindTexture(target: number, texture: number | null): void {
-    gl.symbols.glBindTexture(target, texture || 0);
-  }
-
-  texParameteri(target: number, pname: number, param: number): void {
-    gl.symbols.glTexParameteri(target, pname, param);
-  }
-
-  texImage2D(
-    target: number,
-    level: number,
-    internalFormat: number,
-    format: number,
-    type: number,
-    source: ImageData
-  ): void {
-    const buffer = Buffer.from(source.data.buffer);
-    gl.symbols.glTexImage2D(
-      target,
-      level,
-      internalFormat,
-      source.width,
-      source.height,
-      0,
-      format,
-      type,
-      ptr(buffer)
-    );
-  }
-
-  activeTexture(texture: number): void {
-    gl.symbols.glActiveTexture(texture);
-  }
-
-  drawArrays(mode: number, first: number, count: number): void {
-    gl.symbols.glDrawArrays(mode, first, count);
-  }
-
-  clear(mask: number): void {
-    gl.symbols.glClear(mask);
-  }
-
-  readPixels(
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-    format: number,
-    type: number,
-    pixels: Uint8Array
-  ): void {
-    const buffer = Buffer.from(pixels.buffer);
-    gl.symbols.glReadPixels(x, y, width, height, format, type, ptr(buffer));
-  }
-
-  viewport(x: number, y: number, width: number, height: number): void {
-    gl.symbols.glViewport(x, y, width, height);
-  }
-
-  flush(): void {
-    gl.symbols.glFlush();
-  }
-
-  finish(): void {
-    gl.symbols.glFinish();
-  }
-
-  clearColor(red: number, green: number, blue: number, alpha: number): void {
-    gl.symbols.glClearColor(red, green, blue, alpha);
-  }
-
-  getError(): number {
-    return gl.symbols.glGetError();
   }
 }
 
