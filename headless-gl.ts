@@ -3,20 +3,28 @@ import { CString } from "bun:ffi";
 
 let eglContext: any = null;
 let webglContext: NativeWebGLContext | null = null;
+let currentWidth = 0;
+let currentHeight = 0;
 
 /**
  * Initialize headless OpenGL context using EGL
  * This follows the NVIDIA recommended approach for headless OpenGL
  */
 export function initHeadlessGL(width: number = 512, height: number = 512) {
+  // Always cleanup and recreate context for now to avoid race conditions
+  // TODO: Optimize this later by proper context reuse
   if (eglContext) {
-    console.log("EGL context already initialized");
-    return webglContext;
+    console.log(
+      `Cleaning up existing EGL context for new dimensions: ${width}x${height}`
+    );
+    cleanupHeadlessGL();
   }
 
   try {
     // Initialize EGL context using the modern EGL approach
     eglContext = initEGLContext(width, height);
+    currentWidth = width;
+    currentHeight = height;
 
     // Create WebGL-compatible wrapper
     webglContext = new NativeWebGLContext(width, height);
@@ -28,8 +36,8 @@ export function initHeadlessGL(width: number = 512, height: number = 512) {
       console.log("OpenGL Version:", versionStr);
     }
 
-    // Set up viewport
-    gl.symbols.glViewport(0, 0, width, height);
+    // Note: We'll set viewport in the WebGL context, not here
+    // gl.symbols.glViewport(0, 0, width, height);
 
     return webglContext;
   } catch (error) {
@@ -45,6 +53,8 @@ export function cleanupHeadlessGL() {
     eglContext.cleanup();
     eglContext = null;
     webglContext = null;
+    currentWidth = 0;
+    currentHeight = 0;
     console.log("EGL context cleaned up");
   }
 }

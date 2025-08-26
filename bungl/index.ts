@@ -510,18 +510,13 @@ export class NativeWebGLContext {
   }
 
   shaderSource(shader: number, source: string): void {
-    const sourceBuffer = Buffer.from(source, "utf-8");
-    // Add null terminator
-    const nullTerminatedSource = Buffer.concat([
-      sourceBuffer,
-      Buffer.from([0]),
-    ]);
-    const sourcePtr = ptr(nullTerminatedSource);
+    const sourceBuffer = Buffer.from(source + "\0", "utf-8");
+    const sourcePtr = ptr(sourceBuffer);
 
     // Create an array containing the pointer to the source string
     const sourcePtrsBuffer = Buffer.alloc(8);
     const sourcePtrsView = new BigUint64Array(sourcePtrsBuffer.buffer);
-    sourcePtrsView[0] = BigInt(sourcePtr as any);
+    sourcePtrsView[0] = BigInt(sourcePtr);
 
     // Create length array (pass null to let OpenGL calculate length)
     gl.symbols.glShaderSource(shader, 1, ptr(sourcePtrsBuffer), null);

@@ -1,9 +1,117 @@
-import { initHeadlessGL, readPixels } from "./headless-gl.js";
+import { gl, initEGLContext } from "./bungl/index.js";
 import { PlacementOptions, UserOptions, GlOptions } from "./options.js";
-import { compileShader } from "./utils.js";
 import { start, stop } from "./bench.js";
 import { writeFileSync } from "fs";
 import sharp from "sharp";
+import { ptr } from "bun:ffi";
+
+// OpenGL constants
+const GL_VERTEX_SHADER = 0x8b31;
+const GL_FRAGMENT_SHADER = 0x8b30;
+const GL_COMPILE_STATUS = 0x8b81;
+const GL_LINK_STATUS = 0x8b82;
+const GL_ARRAY_BUFFER = 0x8892;
+const GL_STATIC_DRAW = 0x88e4;
+const GL_TRIANGLES = 0x0004;
+const GL_COLOR_BUFFER_BIT = 0x00004000;
+const GL_TEXTURE_2D = 0x0de1;
+const GL_TEXTURE0 = 0x84c0;
+const GL_RGBA = 0x1908;
+const GL_UNSIGNED_BYTE = 0x1401;
+const GL_LINEAR = 0x2601;
+const GL_CLAMP_TO_EDGE = 0x812f;
+const GL_TEXTURE_MIN_FILTER = 0x2801;
+const GL_TEXTURE_MAG_FILTER = 0x2800;
+const GL_TEXTURE_WRAP_S = 0x2802;
+const GL_TEXTURE_WRAP_T = 0x2803;
+const GL_BLEND = 0x0be2;
+const GL_SRC_ALPHA = 0x0302;
+const GL_ONE_MINUS_SRC_ALPHA = 0x0303;
+const GL_FLOAT = 0x1406;
+
+function compileShader(source: string, type: number): number {
+  const shader = gl.symbols.glCreateShader(type);
+
+  if (shader === 0) {
+    throw new Error("Failed to create shader");
+  }
+
+  // Create shader source buffer using the same approach as the WebGL wrapper
+  const sourceBuffer = Buffer.from(source + "\0", "utf-8");
+  const sourcePtr = ptr(sourceBuffer);
+
+  // Create an array containing the pointer to the source string
+  const sourcePtrsBuffer = Buffer.alloc(8);
+  const sourcePtrsView = new BigUint64Array(sourcePtrsBuffer.buffer);
+  sourcePtrsView[0] = BigInt(sourcePtr);
+
+  gl.symbols.glShaderSource(shader, 1, ptr(sourcePtrsBuffer), null);
+  gl.symbols.glCompileShader(shader);
+
+  // Check compilation status
+  const statusBuffer = Buffer.alloc(4);
+  gl.symbols.glGetShaderiv(shader, GL_COMPILE_STATUS, ptr(statusBuffer));
+  const status = new Int32Array(statusBuffer.buffer)[0];
+
+  if (!status) {
+    const logBuffer = Buffer.alloc(512);
+    const lengthBuffer = Buffer.alloc(4);
+    gl.symbols.glGetShaderInfoLog(
+      shader,
+      512,
+      ptr(lengthBuffer),
+      ptr(logBuffer)
+    );
+    const logLength = new Int32Array(lengthBuffer.buffer)[0];
+    const log = new TextDecoder().decode(logBuffer.slice(0, logLength));
+    throw new Error(`Failed to compile shader: ${log}`);
+  }
+
+  return shader;
+}
+
+function createProgram(vertexShader: number, fragmentShader: number): number {
+  const program = gl.symbols.glCreateProgram();
+
+  if (program === 0) {
+    throw new Error("Failed to create program");
+  }
+
+  gl.symbols.glAttachShader(program, vertexShader);
+  gl.symbols.glAttachShader(program, fragmentShader);
+  gl.symbols.glLinkProgram(program);
+
+  // Check link status
+  const statusBuffer = Buffer.alloc(4);
+  gl.symbols.glGetProgramiv(program, GL_LINK_STATUS, ptr(statusBuffer));
+  const status = new Int32Array(statusBuffer.buffer)[0];
+
+  if (!status) {
+    const logBuffer = Buffer.alloc(512);
+    const lengthBuffer = Buffer.alloc(4);
+    gl.symbols.glGetProgramInfoLog(
+      program,
+      512,
+      ptr(lengthBuffer),
+      ptr(logBuffer)
+    );
+    const logLength = new Int32Array(lengthBuffer.buffer)[0];
+    const log = new TextDecoder().decode(logBuffer.slice(0, logLength));
+    throw new Error(`Failed to link program: ${log}`);
+  }
+
+  return program;
+}
+
+function getAttribLocation(program: number, name: string): number {
+  const nameBuffer = Buffer.from(name + "\0", "utf-8");
+  return gl.symbols.glGetAttribLocation(program, ptr(nameBuffer));
+}
+
+function getUniformLocation(program: number, name: string): number {
+  const nameBuffer = Buffer.from(name + "\0", "utf-8");
+  return gl.symbols.glGetUniformLocation(program, ptr(nameBuffer));
+}
 
 export function setupGl({
   frames,
@@ -264,105 +372,70 @@ void main() {
 }
 `;
 
-  const gl = initHeadlessGL(width, height);
+  // Initialize EGL context directly
+  const eglContext = initEGLContext(width, height);
 
-  if (!gl) {
-    throw new Error("Failed to create WebGL context");
+  if (!eglContext) {
+    throw new Error("Failed to create EGL context");
   }
 
   // Enable blending
-  gl.enable(gl.BLEND);
-  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  gl.symbols.glEnable(GL_BLEND);
+  gl.symbols.glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
   // Compile the shaders
-  const vertexShader = compileShader(gl, vertexShaderSource, gl.VERTEX_SHADER);
-  const bgShader = compileShader(gl, bgShaderSource, gl.FRAGMENT_SHADER);
-  const sliderShader = compileShader(
-    gl,
-    sliderShaderSource,
-    gl.FRAGMENT_SHADER
-  );
+  const vertexShader = compileShader(vertexShaderSource, GL_VERTEX_SHADER);
+  const bgShader = compileShader(bgShaderSource, GL_FRAGMENT_SHADER);
+  const sliderShader = compileShader(sliderShaderSource, GL_FRAGMENT_SHADER);
   const simpleFragmentShader = compileShader(
-    gl,
     simpleFragmentShaderSource,
-    gl.FRAGMENT_SHADER
+    GL_FRAGMENT_SHADER
   );
 
   // Create the programs
-  const bgProgram = gl.createProgram();
-  gl.attachShader(bgProgram, vertexShader);
-  gl.attachShader(bgProgram, bgShader);
-  gl.linkProgram(bgProgram);
-  if (!gl.getProgramParameter(bgProgram, gl.LINK_STATUS)) {
-    throw new Error(
-      `Failed to link bg program: ${gl.getProgramInfoLog(bgProgram)}`
-    );
-  }
-
-  const sliderProgram = gl.createProgram();
-  gl.attachShader(sliderProgram, vertexShader);
-  gl.attachShader(sliderProgram, sliderShader);
-  gl.linkProgram(sliderProgram);
-  if (!gl.getProgramParameter(sliderProgram, gl.LINK_STATUS)) {
-    throw new Error(
-      `Failed to link slider program: ${gl.getProgramInfoLog(sliderProgram)}`
-    );
-  }
+  const bgProgram = createProgram(vertexShader, bgShader);
+  const sliderProgram = createProgram(vertexShader, sliderShader);
+  const simpleProgram = createProgram(vertexShader, simpleFragmentShader);
 
   // Create the position buffer
-  const positionBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-  gl.bufferData(
-    gl.ARRAY_BUFFER,
-    new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]),
-    gl.STATIC_DRAW
+  const bufferPtr = new Uint32Array(1);
+  gl.symbols.glGenBuffers(1, ptr(bufferPtr));
+  const positionBuffer = bufferPtr[0];
+
+  gl.symbols.glBindBuffer(GL_ARRAY_BUFFER, positionBuffer);
+  const positionData = new Float32Array([
+    -1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1,
+  ]);
+  gl.symbols.glBufferData(
+    GL_ARRAY_BUFFER,
+    positionData.byteLength,
+    ptr(positionData),
+    GL_STATIC_DRAW
   );
 
   // Get the attribute locations
-  const bgPositionLocation = gl.getAttribLocation(bgProgram, "a_position");
-  const sliderPositionLocation = gl.getAttribLocation(
-    sliderProgram,
-    "a_position"
-  );
+  const bgPositionLocation = getAttribLocation(bgProgram, "a_position");
+  const sliderPositionLocation = getAttribLocation(sliderProgram, "a_position");
+  const simplePositionLocation = getAttribLocation(simpleProgram, "a_position");
 
-  const sliderStencilLocation = gl.getUniformLocation(
-    sliderProgram,
-    "u_stencil"
-  );
+  const sliderStencilLocation = getUniformLocation(sliderProgram, "u_stencil");
 
   if (sliderStencilLocation === -1) {
     throw new Error("Failed to get slider stencil location");
   }
 
-  const bgFrameLocation = gl.getUniformLocation(bgProgram, "u_frame");
-  const sliderFrameLocation = gl.getUniformLocation(sliderProgram, "u_frame");
+  const bgFrameLocation = getUniformLocation(bgProgram, "u_frame");
+  const sliderFrameLocation = getUniformLocation(sliderProgram, "u_frame");
 
   if (bgFrameLocation === -1 || sliderFrameLocation === -1) {
     throw new Error("Failed to get frame location");
   }
 
-  const bgColorLocation = gl.getUniformLocation(bgProgram, "lineColor");
+  const bgColorLocation = getUniformLocation(bgProgram, "lineColor");
 
   if (bgColorLocation === -1) {
     throw new Error("Failed to get bg color location");
   }
-
-  // Create the simple program
-  const simpleProgram = gl.createProgram();
-  gl.attachShader(simpleProgram, vertexShader);
-  gl.attachShader(simpleProgram, simpleFragmentShader);
-  gl.linkProgram(simpleProgram);
-  if (!gl.getProgramParameter(simpleProgram, gl.LINK_STATUS)) {
-    throw new Error(
-      `Failed to link simple program: ${gl.getProgramInfoLog(simpleProgram)}`
-    );
-  }
-
-  // Get the attribute location for the simple program
-  const simplePositionLocation = gl.getAttribLocation(
-    simpleProgram,
-    "a_position"
-  );
 
   return new GlOptions(
     gl,
@@ -407,71 +480,104 @@ export function renderGl(
   const c = palette.Vibrant!;
 
   // Set viewport
-  gl.viewport(0, 0, width, height);
+  gl.symbols.glViewport(0, 0, width, height);
 
-  gl.useProgram(bgProgram);
-  gl.uniform4f(bgColorLocation, c.r / 255, c.g / 255, c.b / 255, 1);
+  gl.symbols.glUseProgram(bgProgram);
+  gl.symbols.glUniform4f(bgColorLocation, c.r / 255, c.g / 255, c.b / 255, 1);
 
-  const textureLocation = gl.getUniformLocation(simpleProgram, "u_texture");
+  const textureLocation = getUniformLocation(simpleProgram, "u_texture");
 
   if (textureLocation === -1) {
     throw new Error("Failed to get texture location");
   }
 
-  const stencilTexture = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, stencilTexture);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  const texturePtr = new Uint32Array(1);
+  gl.symbols.glGenTextures(1, ptr(texturePtr));
+  const stencilTexture = texturePtr[0];
+
+  gl.symbols.glBindTexture(GL_TEXTURE_2D, stencilTexture);
+  gl.symbols.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  gl.symbols.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  gl.symbols.glTexParameteri(
+    GL_TEXTURE_2D,
+    GL_TEXTURE_WRAP_S,
+    GL_CLAMP_TO_EDGE
+  );
+  gl.symbols.glTexParameteri(
+    GL_TEXTURE_2D,
+    GL_TEXTURE_WRAP_T,
+    GL_CLAMP_TO_EDGE
+  );
 
   // Get the canvas's textures
   start("getTextures");
   start("getImageData");
   const stencilCanvasData = stencilCanvas.getImageData(0, 0, width, height);
   stop("getImageData");
-  gl.texImage2D(
-    gl.TEXTURE_2D,
+  gl.symbols.glTexImage2D(
+    GL_TEXTURE_2D,
     0,
-    gl.RGBA,
-    gl.RGBA,
-    gl.UNSIGNED_BYTE,
-    // @ts-expect-error
-    stencilCanvasData // missing `colorSpace` property, but it's not used by headless-gl
+    GL_RGBA,
+    width,
+    height,
+    0,
+    GL_RGBA,
+    GL_UNSIGNED_BYTE,
+    ptr(stencilCanvasData.data)
   );
 
-  const canvasTexture = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, canvasTexture);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  const canvasTexturePtr = new Uint32Array(1);
+  gl.symbols.glGenTextures(1, ptr(canvasTexturePtr));
+  const canvasTexture = canvasTexturePtr[0];
+
+  gl.symbols.glBindTexture(GL_TEXTURE_2D, canvasTexture);
+  gl.symbols.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  gl.symbols.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  gl.symbols.glTexParameteri(
+    GL_TEXTURE_2D,
+    GL_TEXTURE_WRAP_S,
+    GL_CLAMP_TO_EDGE
+  );
+  gl.symbols.glTexParameteri(
+    GL_TEXTURE_2D,
+    GL_TEXTURE_WRAP_T,
+    GL_CLAMP_TO_EDGE
+  );
 
   start("getImageData");
   const canvasData = canvas.getImageData(0, 0, width, height);
   stop("getImageData");
-  gl.texImage2D(
-    gl.TEXTURE_2D,
+  gl.symbols.glTexImage2D(
+    GL_TEXTURE_2D,
     0,
-    gl.RGBA,
-    gl.RGBA,
-    gl.UNSIGNED_BYTE,
-    // @ts-expect-error
-    canvasData
+    GL_RGBA,
+    width,
+    height,
+    0,
+    GL_RGBA,
+    GL_UNSIGNED_BYTE,
+    ptr(canvasData.data)
   );
   stop("getTextures");
 
   const drawTexture = (texture: number) => {
-    gl.useProgram(simpleProgram);
+    gl.symbols.glUseProgram(simpleProgram);
 
     // Set up vertex attributes for simple program
-    gl.enableVertexAttribArray(simplePositionLocation);
-    gl.vertexAttribPointer(simplePositionLocation, 2, gl.FLOAT, false, 0, 0);
+    gl.symbols.glEnableVertexAttribArray(simplePositionLocation);
+    gl.symbols.glVertexAttribPointer(
+      simplePositionLocation,
+      2,
+      GL_FLOAT,
+      false,
+      0,
+      null
+    );
 
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.uniform1i(textureLocation, 0);
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    gl.symbols.glActiveTexture(GL_TEXTURE0);
+    gl.symbols.glBindTexture(GL_TEXTURE_2D, texture);
+    gl.symbols.glUniform1i(textureLocation, 0);
+    gl.symbols.glDrawArrays(GL_TRIANGLES, 0, 6);
   };
 
   const frameArray: Uint8Array[] = [];
@@ -481,42 +587,66 @@ export function renderGl(
   start("drawFrames");
   for (let frame = 0; frame < frames; frame++) {
     // Clear the canvas
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.symbols.glClear(GL_COLOR_BUFFER_BIT);
 
     // Bind the position buffer (needed for all programs)
-    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.symbols.glBindBuffer(GL_ARRAY_BUFFER, positionBuffer);
 
     // Draw background
-    gl.useProgram(bgProgram);
-    gl.enableVertexAttribArray(bgPositionLocation);
-    gl.vertexAttribPointer(bgPositionLocation, 2, gl.FLOAT, false, 0, 0);
-    gl.uniform1i(bgFrameLocation, frame);
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    gl.symbols.glUseProgram(bgProgram);
+    gl.symbols.glEnableVertexAttribArray(bgPositionLocation);
+    gl.symbols.glVertexAttribPointer(
+      bgPositionLocation,
+      2,
+      GL_FLOAT,
+      false,
+      0,
+      null
+    );
+    gl.symbols.glUniform1i(bgFrameLocation, frame);
+    gl.symbols.glDrawArrays(GL_TRIANGLES, 0, 6);
 
     // Draw canvas image
     drawTexture(canvasTexture);
 
     // Draw slider
-    gl.useProgram(sliderProgram);
-    gl.enableVertexAttribArray(sliderPositionLocation);
-    gl.vertexAttribPointer(sliderPositionLocation, 2, gl.FLOAT, false, 0, 0);
-    gl.uniform1i(sliderFrameLocation, frame);
-    gl.uniform1i(sliderStencilLocation, 0);
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, stencilTexture);
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    gl.symbols.glUseProgram(sliderProgram);
+    gl.symbols.glEnableVertexAttribArray(sliderPositionLocation);
+    gl.symbols.glVertexAttribPointer(
+      sliderPositionLocation,
+      2,
+      GL_FLOAT,
+      false,
+      0,
+      null
+    );
+    gl.symbols.glUniform1i(sliderFrameLocation, frame);
+    gl.symbols.glUniform1i(sliderStencilLocation, 0);
+    gl.symbols.glActiveTexture(GL_TEXTURE0);
+    gl.symbols.glBindTexture(GL_TEXTURE_2D, stencilTexture);
+    gl.symbols.glDrawArrays(GL_TRIANGLES, 0, 6);
 
     // Ensure all OpenGL commands are executed
-    gl.flush();
-    gl.finish();
+    gl.symbols.glFlush();
+    gl.symbols.glFinish();
 
-    // Read the pixels from the framebuffer
+    // Read the pixels from the framebuffer using raw OpenGL
     start("readPixels");
-    const pixels = readPixels(width, height);
+    const pixels = new Uint8Array(width * height * 4); // RGBA
+    const buffer = Buffer.from(pixels.buffer);
 
-    // Check for OpenGL errors using the raw gl symbols
-    const { gl: glSymbols } = gl as any;
-    const error = glSymbols?.symbols?.glGetError?.() || 0;
+    gl.symbols.glReadPixels(
+      0,
+      0, // x, y
+      width,
+      height, // width, height
+      GL_RGBA, // format
+      GL_UNSIGNED_BYTE, // type
+      ptr(buffer)
+    );
+
+    // Check for OpenGL errors using raw GL calls
+    const error = gl.symbols.glGetError();
     if (error !== 0) {
       console.error(
         `OpenGL error during frame ${frame}: 0x${error.toString(16)}`

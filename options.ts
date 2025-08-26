@@ -1,6 +1,5 @@
 import type { Palette } from "@vibrant/color";
 import type { SKRSContext2D, Image } from "@napi-rs/canvas";
-import type { NativeWebGLContext } from "./bungl/index.js";
 
 export class PlacementOptions {
   public fps = 30;
@@ -45,7 +44,7 @@ export class PlacementOptions {
 export class GlOptions {
   public ctx: SKRSContext2D | undefined;
   public stencilCtx: SKRSContext2D | undefined;
-  public gl: NativeWebGLContext;
+  public gl: any; // Raw OpenGL context (bypassing WebGL wrapper)
   public bgProgram: number;
   public sliderProgram: number;
   public simpleProgram: number;
@@ -59,7 +58,7 @@ export class GlOptions {
   public positionBuffer: number;
 
   constructor(
-    gl: NativeWebGLContext,
+    gl: any, // Raw OpenGL context
     bgProgram: number,
     sliderProgram: number,
     simpleProgram: number,
