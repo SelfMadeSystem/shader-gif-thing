@@ -1,6 +1,6 @@
 import createGLContext from "gl";
 import type { Palette } from "@vibrant/color";
-import type { CanvasRenderingContext2D, Image } from "canvas";
+import type { SKRSContext2D, Image } from "@napi-rs/canvas";
 
 export class PlacementOptions {
   public fps = 30;
@@ -43,8 +43,8 @@ export class PlacementOptions {
 }
 
 export class GlOptions {
-  public ctx: CanvasRenderingContext2D | undefined;
-  public stencilCtx: CanvasRenderingContext2D | undefined;
+  public ctx: SKRSContext2D | undefined;
+  public stencilCtx: SKRSContext2D | undefined;
   public gl: ReturnType<typeof createGLContext>;
   public bgProgram: WebGLProgram;
   public sliderProgram: WebGLProgram;

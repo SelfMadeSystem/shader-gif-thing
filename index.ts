@@ -3,7 +3,7 @@ import { renderGl, setupGl } from "./shader.ts";
 import { PlacementOptions, UserOptions } from "./options.ts";
 import { bufferFromUrl, encodeFramesToGif } from "./utils.ts";
 // import { loadImage } from "skia-canvas";
-import { loadImage } from "canvas";
+import { loadImage } from "@napi-rs/canvas";
 import { Vibrant } from "node-vibrant/node";
 import { start, stop, report } from "./bench.ts";
 import * as readline from "readline";

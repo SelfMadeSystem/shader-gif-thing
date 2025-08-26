@@ -1,9 +1,9 @@
 // import { Canvas, FontLibrary } from "skia-canvas";
-import { createCanvas, registerFont } from "canvas";
+import { createCanvas, GlobalFonts } from "@napi-rs/canvas";
 import { PlacementOptions, UserOptions } from "./options.ts";
 
 // FontLibrary.use("Noto Custom", ["./assets/NotoSans-Custom.ttf"]);
-registerFont("./assets/NotoSans-Custom.ttf", { family: "Noto Custom" });
+GlobalFonts.registerFromPath("./assets/NotoSans-Custom.ttf", "Noto Custom");
 
 export function renderStatic(
   {
@@ -75,8 +75,20 @@ export function renderStatic(
   stencilCtx.save();
   ctx.beginPath();
   stencilCtx.beginPath();
-  ctx.roundRect(sliderLeft, sliderTop, sliderWidth, sliderHeight, sliderHeight / 2);
-  stencilCtx.roundRect(sliderLeft, sliderTop, sliderWidth, sliderHeight, sliderHeight / 2);
+  ctx.roundRect(
+    sliderLeft,
+    sliderTop,
+    sliderWidth,
+    sliderHeight,
+    sliderHeight / 2
+  );
+  stencilCtx.roundRect(
+    sliderLeft,
+    sliderTop,
+    sliderWidth,
+    sliderHeight,
+    sliderHeight / 2
+  );
   ctx.clip();
   stencilCtx.clip();
   ctx.fill();
