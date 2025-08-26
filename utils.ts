@@ -2,6 +2,7 @@ import sharp from "sharp";
 import { PassThrough } from "stream";
 import ffmpeg from "fluent-ffmpeg";
 import { start, stop } from "./bench.ts";
+import type { NativeWebGLContext } from "./bungl/index.js";
 
 export async function bufferFromUrl(url: string) {
   start("fetch");
@@ -18,7 +19,7 @@ export async function bufferFromUrl(url: string) {
 }
 
 export function compileShader(
-  gl: WebGLRenderingContext,
+  gl: NativeWebGLContext,
   source: string,
   type: number
 ) {

@@ -1,6 +1,6 @@
-import createGLContext from "gl";
 import type { Palette } from "@vibrant/color";
 import type { SKRSContext2D, Image } from "@napi-rs/canvas";
+import type { NativeWebGLContext } from "./bungl/index.js";
 
 export class PlacementOptions {
   public fps = 30;
@@ -45,24 +45,24 @@ export class PlacementOptions {
 export class GlOptions {
   public ctx: SKRSContext2D | undefined;
   public stencilCtx: SKRSContext2D | undefined;
-  public gl: ReturnType<typeof createGLContext>;
-  public bgProgram: WebGLProgram;
-  public sliderProgram: WebGLProgram;
-  public simpleProgram: WebGLProgram;
-  public sliderStencilLocation: WebGLUniformLocation;
-  public bgFrameLocation: WebGLUniformLocation;
-  public sliderFrameLocation: WebGLUniformLocation;
-  public bgColorLocation: WebGLUniformLocation;
+  public gl: NativeWebGLContext;
+  public bgProgram: number;
+  public sliderProgram: number;
+  public simpleProgram: number;
+  public sliderStencilLocation: number;
+  public bgFrameLocation: number;
+  public sliderFrameLocation: number;
+  public bgColorLocation: number;
 
   constructor(
-    gl: ReturnType<typeof createGLContext>,
-    bgProgram: WebGLProgram,
-    sliderProgram: WebGLProgram,
-    simpleProgram: WebGLProgram,
-    sliderStencilLocation: WebGLUniformLocation,
-    bgFrameLocation: WebGLUniformLocation,
-    sliderFrameLocation: WebGLUniformLocation,
-    bgColorLocation: WebGLUniformLocation
+    gl: NativeWebGLContext,
+    bgProgram: number,
+    sliderProgram: number,
+    simpleProgram: number,
+    sliderStencilLocation: number,
+    bgFrameLocation: number,
+    sliderFrameLocation: number,
+    bgColorLocation: number
   ) {
     this.gl = gl;
     this.bgProgram = bgProgram;

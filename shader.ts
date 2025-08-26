@@ -1,7 +1,7 @@
-import createGLContext from "gl";
-import { PlacementOptions, UserOptions, GlOptions } from "./options.ts";
-import { compileShader } from "./utils.ts";
-import { start, stop } from "./bench.ts";
+import { initHeadlessGL } from "./headless-gl.js";
+import { PlacementOptions, UserOptions, GlOptions } from "./options.js";
+import { compileShader } from "./utils.js";
+import { start, stop } from "./bench.js";
 
 export function setupGl({
   frames,
@@ -10,6 +10,7 @@ export function setupGl({
 }: PlacementOptions): GlOptions {
   // Create a simple gradient shader
   const vertexShaderSource = /* glsl */ `
+#version 120
 attribute vec2 a_position;
 varying vec2 v_uv;
 void main() {
@@ -20,7 +21,7 @@ void main() {
 
   // Source: https://www.shadertoy.com/view/ltXczj
   const bgShaderSource = /* glsl */ `
-precision mediump float;
+#version 120
 const int maxFrame = ${frames};
 const vec2 iResolution = vec2(${width}, ${height});
 varying vec2 v_uv;
@@ -137,7 +138,7 @@ void main() {
 
   // Source https://www.shadertoy.com/view/tdG3Rd
   const sliderShaderSource = /* glsl */ `
-precision mediump float;
+#version 120
 const int maxFrame = ${frames};
 varying vec2 v_uv;
 uniform int u_frame;
@@ -252,7 +253,7 @@ void main()
 `;
 
   const simpleFragmentShaderSource = /* glsl */ `
-precision mediump float;
+#version 120
 varying vec2 v_uv;
 uniform sampler2D u_texture;
 
@@ -261,7 +262,7 @@ void main() {
 }
 `;
 
-  const gl = createGLContext(width, height);
+  const gl = initHeadlessGL(width, height);
 
   if (!gl) {
     throw new Error("Failed to create WebGL context");
@@ -332,20 +333,20 @@ void main() {
     "u_stencil"
   );
 
-  if (!sliderStencilLocation) {
+  if (sliderStencilLocation === -1) {
     throw new Error("Failed to get slider stencil location");
   }
 
   const bgFrameLocation = gl.getUniformLocation(bgProgram, "u_frame");
   const sliderFrameLocation = gl.getUniformLocation(sliderProgram, "u_frame");
 
-  if (!bgFrameLocation || !sliderFrameLocation) {
+  if (bgFrameLocation === -1 || sliderFrameLocation === -1) {
     throw new Error("Failed to get frame location");
   }
 
   const bgColorLocation = gl.getUniformLocation(bgProgram, "lineColor");
 
-  if (!bgColorLocation) {
+  if (bgColorLocation === -1) {
     throw new Error("Failed to get bg color location");
   }
 
@@ -407,6 +408,10 @@ export function renderGl(
 
   const textureLocation = gl.getUniformLocation(simpleProgram, "u_texture");
 
+  if (textureLocation === -1) {
+    throw new Error("Failed to get texture location");
+  }
+
   const stencilTexture = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, stencilTexture);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
@@ -450,7 +455,7 @@ export function renderGl(
   );
   stop("getTextures");
 
-  const drawTexture = (texture: WebGLTexture) => {
+  const drawTexture = (texture: number) => {
     gl.useProgram(simpleProgram);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, texture);
