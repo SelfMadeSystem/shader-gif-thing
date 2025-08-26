@@ -41,6 +41,16 @@ const gl = dlopen("libOpenGL.so", {
     returns: FFIType.void,
   },
 
+  // OpenGL command execution
+  glFlush: {
+    args: [],
+    returns: FFIType.void,
+  },
+  glFinish: {
+    args: [],
+    returns: FFIType.void,
+  },
+
   // Shader functions
   glCreateShader: {
     args: [FFIType.u32],
@@ -488,6 +498,7 @@ export class NativeWebGLContext {
   readonly CLAMP_TO_EDGE = GL_CONSTANTS.CLAMP_TO_EDGE;
   readonly TEXTURE0 = GL_CONSTANTS.TEXTURE0;
   readonly RGBA = GL_CONSTANTS.RGBA;
+  readonly NO_ERROR = 0;
 
   constructor(width: number, height: number) {
     this.width = width;
@@ -721,8 +732,20 @@ export class NativeWebGLContext {
     gl.symbols.glViewport(x, y, width, height);
   }
 
+  flush(): void {
+    gl.symbols.glFlush();
+  }
+
+  finish(): void {
+    gl.symbols.glFinish();
+  }
+
   clearColor(red: number, green: number, blue: number, alpha: number): void {
     gl.symbols.glClearColor(red, green, blue, alpha);
+  }
+
+  getError(): number {
+    return gl.symbols.glGetError();
   }
 }
 

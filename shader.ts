@@ -1,7 +1,9 @@
-import { initHeadlessGL } from "./headless-gl.js";
+import { initHeadlessGL, readPixels } from "./headless-gl.js";
 import { PlacementOptions, UserOptions, GlOptions } from "./options.js";
 import { compileShader } from "./utils.js";
 import { start, stop } from "./bench.js";
+import { writeFileSync } from "fs";
+import sharp from "sharp";
 
 export function setupGl({
   frames,
@@ -318,15 +320,10 @@ void main() {
 
   // Get the attribute locations
   const bgPositionLocation = gl.getAttribLocation(bgProgram, "a_position");
-  gl.enableVertexAttribArray(bgPositionLocation);
-  gl.vertexAttribPointer(bgPositionLocation, 2, gl.FLOAT, false, 0, 0);
-
   const sliderPositionLocation = gl.getAttribLocation(
     sliderProgram,
     "a_position"
   );
-  gl.enableVertexAttribArray(sliderPositionLocation);
-  gl.vertexAttribPointer(sliderPositionLocation, 2, gl.FLOAT, false, 0, 0);
 
   const sliderStencilLocation = gl.getUniformLocation(
     sliderProgram,
@@ -366,8 +363,6 @@ void main() {
     simpleProgram,
     "a_position"
   );
-  gl.enableVertexAttribArray(simplePositionLocation);
-  gl.vertexAttribPointer(simplePositionLocation, 2, gl.FLOAT, false, 0, 0);
 
   return new GlOptions(
     gl,
@@ -377,7 +372,11 @@ void main() {
     sliderStencilLocation,
     bgFrameLocation,
     sliderFrameLocation,
-    bgColorLocation
+    bgColorLocation,
+    bgPositionLocation,
+    sliderPositionLocation,
+    simplePositionLocation,
+    positionBuffer
   );
 }
 
@@ -392,6 +391,10 @@ export function renderGl(
     bgFrameLocation,
     bgColorLocation,
     simpleProgram,
+    bgPositionLocation,
+    sliderPositionLocation,
+    simplePositionLocation,
+    positionBuffer,
     gl,
     ctx: canvas,
     stencilCtx: stencilCanvas,
@@ -402,6 +405,9 @@ export function renderGl(
   }
   start("initGl");
   const c = palette.Vibrant!;
+
+  // Set viewport
+  gl.viewport(0, 0, width, height);
 
   gl.useProgram(bgProgram);
   gl.uniform4f(bgColorLocation, c.r / 255, c.g / 255, c.b / 255, 1);
@@ -457,6 +463,11 @@ export function renderGl(
 
   const drawTexture = (texture: number) => {
     gl.useProgram(simpleProgram);
+
+    // Set up vertex attributes for simple program
+    gl.enableVertexAttribArray(simplePositionLocation);
+    gl.vertexAttribPointer(simplePositionLocation, 2, gl.FLOAT, false, 0, 0);
+
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, texture);
     gl.uniform1i(textureLocation, 0);
@@ -472,8 +483,13 @@ export function renderGl(
     // Clear the canvas
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
+    // Bind the position buffer (needed for all programs)
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+
     // Draw background
     gl.useProgram(bgProgram);
+    gl.enableVertexAttribArray(bgPositionLocation);
+    gl.vertexAttribPointer(bgPositionLocation, 2, gl.FLOAT, false, 0, 0);
     gl.uniform1i(bgFrameLocation, frame);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
 
@@ -482,16 +498,52 @@ export function renderGl(
 
     // Draw slider
     gl.useProgram(sliderProgram);
+    gl.enableVertexAttribArray(sliderPositionLocation);
+    gl.vertexAttribPointer(sliderPositionLocation, 2, gl.FLOAT, false, 0, 0);
     gl.uniform1i(sliderFrameLocation, frame);
     gl.uniform1i(sliderStencilLocation, 0);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, stencilTexture);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
 
+    // Ensure all OpenGL commands are executed
+    gl.flush();
+    gl.finish();
+
     // Read the pixels from the framebuffer
     start("readPixels");
-    const pixels = new Uint8Array(width * height * 4);
-    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    const pixels = readPixels(width, height);
+
+    // Check for OpenGL errors using the raw gl symbols
+    const { gl: glSymbols } = gl as any;
+    const error = glSymbols?.symbols?.glGetError?.() || 0;
+    if (error !== 0) {
+      console.error(
+        `OpenGL error during frame ${frame}: 0x${error.toString(16)}`
+      );
+    }
+
+    // for now, save the pixels as an image on the filesystem
+    {
+      const buffer = Buffer.from(pixels);
+
+      sharp(buffer, {
+        raw: {
+          width: width,
+          height: height,
+          channels: 4,
+        },
+      })
+        .png()
+        .toFile(`output/frame_${String(frame).padStart(3, "0")}.png`)
+        .then(() => {
+          console.log(`Saved frame_${String(frame).padStart(3, "0")}.png`);
+        })
+        .catch((err) => {
+          console.error("Error saving image:", err);
+        });
+    }
+
     frameArray.push(pixels);
     stop("readPixels");
   }

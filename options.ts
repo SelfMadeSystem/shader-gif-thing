@@ -53,6 +53,10 @@ export class GlOptions {
   public bgFrameLocation: number;
   public sliderFrameLocation: number;
   public bgColorLocation: number;
+  public bgPositionLocation: number;
+  public sliderPositionLocation: number;
+  public simplePositionLocation: number;
+  public positionBuffer: number;
 
   constructor(
     gl: NativeWebGLContext,
@@ -62,7 +66,11 @@ export class GlOptions {
     sliderStencilLocation: number,
     bgFrameLocation: number,
     sliderFrameLocation: number,
-    bgColorLocation: number
+    bgColorLocation: number,
+    bgPositionLocation: number,
+    sliderPositionLocation: number,
+    simplePositionLocation: number,
+    positionBuffer: number
   ) {
     this.gl = gl;
     this.bgProgram = bgProgram;
@@ -72,6 +80,10 @@ export class GlOptions {
     this.bgFrameLocation = bgFrameLocation;
     this.sliderFrameLocation = sliderFrameLocation;
     this.bgColorLocation = bgColorLocation;
+    this.bgPositionLocation = bgPositionLocation;
+    this.sliderPositionLocation = sliderPositionLocation;
+    this.simplePositionLocation = simplePositionLocation;
+    this.positionBuffer = positionBuffer;
   }
 }
 
