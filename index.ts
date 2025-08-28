@@ -8,6 +8,7 @@ import { Vibrant } from "node-vibrant/node";
 import { start, stop, report } from "./bench.ts";
 import * as readline from "readline";
 import { fetchAccountInfo, getUserLevel } from "./discordUtils.ts";
+import { mkdir } from "fs/promises";
 
 const discordToken = process.env.DISCORD_TOKEN;
 
@@ -116,6 +117,11 @@ async function main() {
       glOptions
     );
     stop("renderGl");
+    
+    // Make sure output directory exists
+    start("ensureOutputDir");
+    await mkdir("output", { recursive: true });
+    stop("ensureOutputDir");
 
     start("encodeFramesToGif");
     await encodeFramesToGif(
