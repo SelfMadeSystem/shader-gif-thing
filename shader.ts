@@ -61,7 +61,7 @@ function compileShader(source: string, type: number): number {
       ptr(logBuffer)
     );
     const logLength = new Int32Array(lengthBuffer.buffer)[0];
-    const log = new TextDecoder().decode(logBuffer.slice(0, logLength));
+    const log = new TextDecoder().decode(logBuffer.subarray(0, logLength));
     throw new Error(`Failed to compile shader: ${log}`);
   }
 
@@ -94,7 +94,7 @@ function createProgram(vertexShader: number, fragmentShader: number): number {
       ptr(logBuffer)
     );
     const logLength = new Int32Array(lengthBuffer.buffer)[0];
-    const log = new TextDecoder().decode(logBuffer.slice(0, logLength));
+    const log = new TextDecoder().decode(logBuffer.subarray(0, logLength));
     throw new Error(`Failed to link program: ${log}`);
   }
 
