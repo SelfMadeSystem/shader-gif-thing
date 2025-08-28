@@ -26,7 +26,7 @@ export function initHeadlessGL(width: number = 512, height: number = 512) {
     currentHeight = height;
 
     // Test that OpenGL is working
-    const version = gl.symbols.glGetString(0x1f02); // GL_VERSION
+    const version = gl.glGetString(0x1f02); // GL_VERSION
     if (version) {
       const versionStr = new CString(version);
       console.log("OpenGL Version:", versionStr);
@@ -69,7 +69,7 @@ export function readPixels(width: number, height: number): Uint8Array {
   const pixels = new Uint8Array(width * height * 4); // RGBA
   const buffer = Buffer.from(pixels.buffer);
 
-  gl.symbols.glReadPixels(
+  gl.glReadPixels(
     0,
     0, // x, y
     width,

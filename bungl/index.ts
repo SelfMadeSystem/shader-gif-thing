@@ -2,7 +2,7 @@
 import { dlopen, FFIType, ptr } from "bun:ffi";
 
 // Load OpenGL and EGL libraries
-const gl = dlopen("libOpenGL.so", {
+const libOpenGL = dlopen("libOpenGL.so", {
   // Basic OpenGL functions
   glGetString: {
     args: [FFIType.u32],
@@ -196,7 +196,7 @@ const gl = dlopen("libOpenGL.so", {
 });
 
 // Load EGL library
-const egl = dlopen("libEGL.so", {
+const libEgl = dlopen("libEGL.so", {
   // EGL functions for headless rendering
   eglGetDisplay: {
     args: [FFIType.u64], // EGL_DEFAULT_DISPLAY is a NativeDisplayType (usually 0)
@@ -243,6 +243,9 @@ const egl = dlopen("libEGL.so", {
     returns: FFIType.u32,
   },
 });
+
+export const gl = libOpenGL.symbols;
+export const egl = libEgl.symbols;
 
 // EGL constants
 const EGL_DEFAULT_DISPLAY = 0; // EGL_DEFAULT_DISPLAY is defined as 0, not a null pointer
@@ -344,18 +347,18 @@ function createPbufferAttribs(width: number, height: number): Buffer {
 export function initEGLContext(width: number = 512, height: number = 512) {
   try {
     // 1. Initialize EGL
-    const eglDisplay = egl.symbols.eglGetDisplay(BigInt(EGL_DEFAULT_DISPLAY));
+    const eglDisplay = egl.eglGetDisplay(BigInt(EGL_DEFAULT_DISPLAY));
 
     const majorPtr = Buffer.alloc(4);
     const minorPtr = Buffer.alloc(4);
 
-    const initResult = egl.symbols.eglInitialize(
+    const initResult = egl.eglInitialize(
       eglDisplay,
       ptr(majorPtr),
       ptr(minorPtr)
     );
     if (!initResult) {
-      const error = egl.symbols.eglGetError();
+      const error = egl.eglGetError();
       throw new Error(
         `Failed to initialize EGL. Error: 0x${error.toString(16)}`
       );
@@ -368,7 +371,7 @@ export function initEGLContext(width: number = 512, height: number = 512) {
     const configBuffer = Buffer.alloc(8); // 8 bytes for pointer on 64-bit
     const numConfigsPtr = Buffer.alloc(4);
 
-    const chooseResult = egl.symbols.eglChooseConfig(
+    const chooseResult = egl.eglChooseConfig(
       eglDisplay,
       ptr(configAttribs),
       ptr(configBuffer),
@@ -377,7 +380,7 @@ export function initEGLContext(width: number = 512, height: number = 512) {
     );
 
     if (!chooseResult) {
-      const error = egl.symbols.eglGetError();
+      const error = egl.eglGetError();
       throw new Error(
         `Failed to choose EGL config. Error: 0x${error.toString(16)}`
       );
@@ -395,27 +398,27 @@ export function initEGLContext(width: number = 512, height: number = 512) {
 
     // 3. Create a PBuffer surface - pass config as BigInt handle
     const pbufferAttribs = createPbufferAttribs(width, height);
-    const eglSurface = egl.symbols.eglCreatePbufferSurface(
+    const eglSurface = egl.eglCreatePbufferSurface(
       eglDisplay,
       configValue, // Pass as BigInt handle directly
       ptr(pbufferAttribs)
     );
 
     if (!eglSurface) {
-      const error = egl.symbols.eglGetError();
+      const error = egl.eglGetError();
       throw new Error(
         `Failed to create PBuffer surface. Error: 0x${error.toString(16)}`
       );
     }
 
     // 4. Bind the OpenGL API
-    const bindResult = egl.symbols.eglBindAPI(EGL_OPENGL_API);
+    const bindResult = egl.eglBindAPI(EGL_OPENGL_API);
     if (!bindResult) {
       throw new Error("Failed to bind OpenGL API");
     }
 
     // 5. Create a context and make it current
-    const eglContext = egl.symbols.eglCreateContext(
+    const eglContext = egl.eglCreateContext(
       eglDisplay,
       configValue, // Pass config as BigInt handle
       EGL_NO_CONTEXT, // Pass as BigInt (0n)
@@ -423,13 +426,13 @@ export function initEGLContext(width: number = 512, height: number = 512) {
     );
 
     if (!eglContext) {
-      const error = egl.symbols.eglGetError();
+      const error = egl.eglGetError();
       throw new Error(
         `Failed to create EGL context. Error: 0x${error.toString(16)}`
       );
     }
 
-    const makeCurrentResult = egl.symbols.eglMakeCurrent(
+    const makeCurrentResult = egl.eglMakeCurrent(
       eglDisplay,
       eglSurface,
       eglSurface,
@@ -447,9 +450,9 @@ export function initEGLContext(width: number = 512, height: number = 512) {
       width,
       height,
       cleanup: () => {
-        egl.symbols.eglDestroySurface(eglDisplay, eglSurface);
-        egl.symbols.eglDestroyContext(eglDisplay, eglContext);
-        egl.symbols.eglTerminate(eglDisplay);
+        egl.eglDestroySurface(eglDisplay, eglSurface);
+        egl.eglDestroyContext(eglDisplay, eglContext);
+        egl.eglTerminate(eglDisplay);
       },
     };
   } catch (error) {
@@ -457,6 +460,3 @@ export function initEGLContext(width: number = 512, height: number = 512) {
     throw error;
   }
 }
-
-// Export OpenGL symbols for use
-export { gl, egl };

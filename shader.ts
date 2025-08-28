@@ -28,7 +28,7 @@ const GL_ONE_MINUS_SRC_ALPHA = 0x0303;
 const GL_FLOAT = 0x1406;
 
 function compileShader(source: string, type: number): number {
-  const shader = gl.symbols.glCreateShader(type);
+  const shader = gl.glCreateShader(type);
 
   if (shader === 0) {
     throw new Error("Failed to create shader");
@@ -43,18 +43,18 @@ function compileShader(source: string, type: number): number {
   const sourcePtrsView = new BigUint64Array(sourcePtrsBuffer.buffer);
   sourcePtrsView[0] = BigInt(sourcePtr);
 
-  gl.symbols.glShaderSource(shader, 1, ptr(sourcePtrsBuffer), null);
-  gl.symbols.glCompileShader(shader);
+  gl.glShaderSource(shader, 1, ptr(sourcePtrsBuffer), null);
+  gl.glCompileShader(shader);
 
   // Check compilation status
   const statusBuffer = Buffer.alloc(4);
-  gl.symbols.glGetShaderiv(shader, GL_COMPILE_STATUS, ptr(statusBuffer));
+  gl.glGetShaderiv(shader, GL_COMPILE_STATUS, ptr(statusBuffer));
   const status = new Int32Array(statusBuffer.buffer)[0];
 
   if (!status) {
     const logBuffer = Buffer.alloc(512);
     const lengthBuffer = Buffer.alloc(4);
-    gl.symbols.glGetShaderInfoLog(
+    gl.glGetShaderInfoLog(
       shader,
       512,
       ptr(lengthBuffer),
@@ -69,25 +69,25 @@ function compileShader(source: string, type: number): number {
 }
 
 function createProgram(vertexShader: number, fragmentShader: number): number {
-  const program = gl.symbols.glCreateProgram();
+  const program = gl.glCreateProgram();
 
   if (program === 0) {
     throw new Error("Failed to create program");
   }
 
-  gl.symbols.glAttachShader(program, vertexShader);
-  gl.symbols.glAttachShader(program, fragmentShader);
-  gl.symbols.glLinkProgram(program);
+  gl.glAttachShader(program, vertexShader);
+  gl.glAttachShader(program, fragmentShader);
+  gl.glLinkProgram(program);
 
   // Check link status
   const statusBuffer = Buffer.alloc(4);
-  gl.symbols.glGetProgramiv(program, GL_LINK_STATUS, ptr(statusBuffer));
+  gl.glGetProgramiv(program, GL_LINK_STATUS, ptr(statusBuffer));
   const status = new Int32Array(statusBuffer.buffer)[0];
 
   if (!status) {
     const logBuffer = Buffer.alloc(512);
     const lengthBuffer = Buffer.alloc(4);
-    gl.symbols.glGetProgramInfoLog(
+    gl.glGetProgramInfoLog(
       program,
       512,
       ptr(lengthBuffer),
@@ -103,12 +103,12 @@ function createProgram(vertexShader: number, fragmentShader: number): number {
 
 function getAttribLocation(program: number, name: string): number {
   const nameBuffer = Buffer.from(name + "\0", "utf-8");
-  return gl.symbols.glGetAttribLocation(program, ptr(nameBuffer));
+  return gl.glGetAttribLocation(program, ptr(nameBuffer));
 }
 
 function getUniformLocation(program: number, name: string): number {
   const nameBuffer = Buffer.from(name + "\0", "utf-8");
-  return gl.symbols.glGetUniformLocation(program, ptr(nameBuffer));
+  return gl.glGetUniformLocation(program, ptr(nameBuffer));
 }
 
 export function setupGl({
@@ -378,8 +378,8 @@ void main() {
   }
 
   // Enable blending
-  gl.symbols.glEnable(GL_BLEND);
-  gl.symbols.glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+  gl.glEnable(GL_BLEND);
+  gl.glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
   // Compile the shaders
   const vertexShader = compileShader(vertexShaderSource, GL_VERTEX_SHADER);
@@ -397,14 +397,14 @@ void main() {
 
   // Create the position buffer
   const bufferPtr = new Uint32Array(1);
-  gl.symbols.glGenBuffers(1, ptr(bufferPtr));
+  gl.glGenBuffers(1, ptr(bufferPtr));
   const positionBuffer = bufferPtr[0];
 
-  gl.symbols.glBindBuffer(GL_ARRAY_BUFFER, positionBuffer);
+  gl.glBindBuffer(GL_ARRAY_BUFFER, positionBuffer);
   const positionData = new Float32Array([
     -1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1,
   ]);
-  gl.symbols.glBufferData(
+  gl.glBufferData(
     GL_ARRAY_BUFFER,
     positionData.byteLength,
     ptr(positionData),
@@ -436,7 +436,6 @@ void main() {
   }
 
   return new GlOptions(
-    gl,
     bgProgram,
     sliderProgram,
     simpleProgram,
@@ -466,7 +465,6 @@ export function renderGl(
     sliderPositionLocation,
     simplePositionLocation,
     positionBuffer,
-    gl,
     ctx: canvas,
     stencilCtx: stencilCanvas,
   }: GlOptions
@@ -478,10 +476,10 @@ export function renderGl(
   const c = palette.Vibrant!;
 
   // Set viewport
-  gl.symbols.glViewport(0, 0, width, height);
+  gl.glViewport(0, 0, width, height);
 
-  gl.symbols.glUseProgram(bgProgram);
-  gl.symbols.glUniform4f(bgColorLocation, c.r / 255, c.g / 255, c.b / 255, 1);
+  gl.glUseProgram(bgProgram);
+  gl.glUniform4f(bgColorLocation, c.r / 255, c.g / 255, c.b / 255, 1);
 
   const textureLocation = getUniformLocation(simpleProgram, "u_texture");
 
@@ -490,18 +488,18 @@ export function renderGl(
   }
 
   const texturePtr = new Uint32Array(1);
-  gl.symbols.glGenTextures(1, ptr(texturePtr));
+  gl.glGenTextures(1, ptr(texturePtr));
   const stencilTexture = texturePtr[0];
 
-  gl.symbols.glBindTexture(GL_TEXTURE_2D, stencilTexture);
-  gl.symbols.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  gl.symbols.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  gl.symbols.glTexParameteri(
+  gl.glBindTexture(GL_TEXTURE_2D, stencilTexture);
+  gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  gl.glTexParameteri(
     GL_TEXTURE_2D,
     GL_TEXTURE_WRAP_S,
     GL_CLAMP_TO_EDGE
   );
-  gl.symbols.glTexParameteri(
+  gl.glTexParameteri(
     GL_TEXTURE_2D,
     GL_TEXTURE_WRAP_T,
     GL_CLAMP_TO_EDGE
@@ -512,7 +510,7 @@ export function renderGl(
   start("getImageData");
   const stencilCanvasData = stencilCanvas.getImageData(0, 0, width, height);
   stop("getImageData");
-  gl.symbols.glTexImage2D(
+  gl.glTexImage2D(
     GL_TEXTURE_2D,
     0,
     GL_RGBA,
@@ -525,18 +523,18 @@ export function renderGl(
   );
 
   const canvasTexturePtr = new Uint32Array(1);
-  gl.symbols.glGenTextures(1, ptr(canvasTexturePtr));
+  gl.glGenTextures(1, ptr(canvasTexturePtr));
   const canvasTexture = canvasTexturePtr[0];
 
-  gl.symbols.glBindTexture(GL_TEXTURE_2D, canvasTexture);
-  gl.symbols.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  gl.symbols.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  gl.symbols.glTexParameteri(
+  gl.glBindTexture(GL_TEXTURE_2D, canvasTexture);
+  gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  gl.glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  gl.glTexParameteri(
     GL_TEXTURE_2D,
     GL_TEXTURE_WRAP_S,
     GL_CLAMP_TO_EDGE
   );
-  gl.symbols.glTexParameteri(
+  gl.glTexParameteri(
     GL_TEXTURE_2D,
     GL_TEXTURE_WRAP_T,
     GL_CLAMP_TO_EDGE
@@ -545,7 +543,7 @@ export function renderGl(
   start("getImageData");
   const canvasData = canvas.getImageData(0, 0, width, height);
   stop("getImageData");
-  gl.symbols.glTexImage2D(
+  gl.glTexImage2D(
     GL_TEXTURE_2D,
     0,
     GL_RGBA,
@@ -559,11 +557,11 @@ export function renderGl(
   stop("getTextures");
 
   const drawTexture = (texture: number) => {
-    gl.symbols.glUseProgram(simpleProgram);
+    gl.glUseProgram(simpleProgram);
 
     // Set up vertex attributes for simple program
-    gl.symbols.glEnableVertexAttribArray(simplePositionLocation);
-    gl.symbols.glVertexAttribPointer(
+    gl.glEnableVertexAttribArray(simplePositionLocation);
+    gl.glVertexAttribPointer(
       simplePositionLocation,
       2,
       GL_FLOAT,
@@ -572,10 +570,10 @@ export function renderGl(
       null
     );
 
-    gl.symbols.glActiveTexture(GL_TEXTURE0);
-    gl.symbols.glBindTexture(GL_TEXTURE_2D, texture);
-    gl.symbols.glUniform1i(textureLocation, 0);
-    gl.symbols.glDrawArrays(GL_TRIANGLES, 0, 6);
+    gl.glActiveTexture(GL_TEXTURE0);
+    gl.glBindTexture(GL_TEXTURE_2D, texture);
+    gl.glUniform1i(textureLocation, 0);
+    gl.glDrawArrays(GL_TRIANGLES, 0, 6);
   };
 
   const frameArray: Uint8Array[] = [];
@@ -585,15 +583,15 @@ export function renderGl(
   start("drawFrames");
   for (let frame = 0; frame < frames; frame++) {
     // Clear the canvas
-    gl.symbols.glClear(GL_COLOR_BUFFER_BIT);
+    gl.glClear(GL_COLOR_BUFFER_BIT);
 
     // Bind the position buffer (needed for all programs)
-    gl.symbols.glBindBuffer(GL_ARRAY_BUFFER, positionBuffer);
+    gl.glBindBuffer(GL_ARRAY_BUFFER, positionBuffer);
 
     // Draw background
-    gl.symbols.glUseProgram(bgProgram);
-    gl.symbols.glEnableVertexAttribArray(bgPositionLocation);
-    gl.symbols.glVertexAttribPointer(
+    gl.glUseProgram(bgProgram);
+    gl.glEnableVertexAttribArray(bgPositionLocation);
+    gl.glVertexAttribPointer(
       bgPositionLocation,
       2,
       GL_FLOAT,
@@ -601,16 +599,16 @@ export function renderGl(
       0,
       null
     );
-    gl.symbols.glUniform1i(bgFrameLocation, frame);
-    gl.symbols.glDrawArrays(GL_TRIANGLES, 0, 6);
+    gl.glUniform1i(bgFrameLocation, frame);
+    gl.glDrawArrays(GL_TRIANGLES, 0, 6);
 
     // Draw canvas image
     drawTexture(canvasTexture);
 
     // Draw slider
-    gl.symbols.glUseProgram(sliderProgram);
-    gl.symbols.glEnableVertexAttribArray(sliderPositionLocation);
-    gl.symbols.glVertexAttribPointer(
+    gl.glUseProgram(sliderProgram);
+    gl.glEnableVertexAttribArray(sliderPositionLocation);
+    gl.glVertexAttribPointer(
       sliderPositionLocation,
       2,
       GL_FLOAT,
@@ -618,22 +616,22 @@ export function renderGl(
       0,
       null
     );
-    gl.symbols.glUniform1i(sliderFrameLocation, frame);
-    gl.symbols.glUniform1i(sliderStencilLocation, 0);
-    gl.symbols.glActiveTexture(GL_TEXTURE0);
-    gl.symbols.glBindTexture(GL_TEXTURE_2D, stencilTexture);
-    gl.symbols.glDrawArrays(GL_TRIANGLES, 0, 6);
+    gl.glUniform1i(sliderFrameLocation, frame);
+    gl.glUniform1i(sliderStencilLocation, 0);
+    gl.glActiveTexture(GL_TEXTURE0);
+    gl.glBindTexture(GL_TEXTURE_2D, stencilTexture);
+    gl.glDrawArrays(GL_TRIANGLES, 0, 6);
 
     // Ensure all OpenGL commands are executed
-    gl.symbols.glFlush();
-    gl.symbols.glFinish();
+    gl.glFlush();
+    gl.glFinish();
 
     // Read the pixels from the framebuffer using raw OpenGL
     start("readPixels");
     const pixels = new Uint8Array(width * height * 4); // RGBA
     const buffer = Buffer.from(pixels.buffer);
 
-    gl.symbols.glReadPixels(
+    gl.glReadPixels(
       0,
       0, // x, y
       width,
@@ -644,7 +642,7 @@ export function renderGl(
     );
 
     // Check for OpenGL errors using raw GL calls
-    const error = gl.symbols.glGetError();
+    const error = gl.glGetError();
     if (error !== 0) {
       console.error(
         `OpenGL error during frame ${frame}: 0x${error.toString(16)}`
