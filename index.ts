@@ -45,8 +45,6 @@ const glOptions = setupGl(placementOptions);
 stop("setupGl");
 
 async function main() {
-  // Wait for deprecation warnings to pass...
-  await new Promise((resolve) => setTimeout(resolve, 300));
   for (let i = 0; i < 50; i++) {
     const accId = discordToken
       ? await askQuestion("Enter accound ID", "optional")
