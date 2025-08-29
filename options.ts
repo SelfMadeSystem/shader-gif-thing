@@ -1,6 +1,5 @@
 import type { Palette } from "@vibrant/color";
 import type { SKRSContext2D, Image } from "@napi-rs/canvas";
-import type { gl as bungl } from "./bungl";
 
 export class PlacementOptions {
   public fps = 30;
